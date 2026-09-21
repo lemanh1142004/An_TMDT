@@ -1,0 +1,39 @@
+server:
+  port: ${GATEWAY_PORT:8081}
+
+spring:
+  application:
+    name: fashion-gateway
+  cloud:
+    gateway:
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOrigins:
+              - "http://localhost:5173"
+              - "http://localhost:3000"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - PATCH
+              - OPTIONS
+            allowedHeaders: "*"
+            allowCredentials: true
+            maxAge: 3600
+      routes:
+        # Route API requests to the Backend Service
+        - id: backend-service-route
+          uri: ${BACKEND_SERVICE_URL:http://localhost:8080}
+          predicates:
+            - Path=/api/**
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,gateway
+  endpoint:
+    health:
+      show-details: always
