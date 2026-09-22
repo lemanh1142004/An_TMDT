@@ -127,10 +127,54 @@ export const LoginPage: React.FC = () => {
         </div>
 
         {/* Demo Credentials Box */}
-        <div className="mt-6 pt-4 border-t border-slate-100 text-xs text-slate-500 bg-slate-50 p-3 rounded-lg">
-          <p className="font-semibold text-slate-700">Tài khoản Admin mẫu:</p>
-          <p className="mt-0.5">Email: <code className="text-indigo-600">admin@fashionstore.com</code></p>
-          <p>Mật khẩu: <code className="text-indigo-600">AdminPassword123!</code></p>
+        <div className="mt-6 pt-4 border-t border-slate-100 text-xs text-slate-500 bg-slate-50 p-4 rounded-xl border border-slate-200">
+          <p className="font-semibold text-slate-800 mb-2">Tài khoản demo sẵn có (Click để điền nhanh):</p>
+          <div className="space-y-2">
+            <button
+              type="button"
+              onClick={() => {
+                setEmail('admin@fashionstore.com');
+                setPassword('AdminPassword123!');
+              }}
+              className="w-full text-left p-2 rounded-lg bg-white border border-slate-200 hover:border-purple-300 hover:bg-purple-50/50 transition flex items-center justify-between"
+            >
+              <div>
+                <span className="font-semibold text-purple-700 bg-purple-100 px-1.5 py-0.5 rounded text-[10px] mr-1.5">ADMIN</span>
+                <span className="font-mono text-slate-700">admin@fashionstore.com</span>
+              </div>
+              <span className="text-[11px] text-indigo-600 font-medium">Nạp &rarr;</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setEmail('staff@fashionstore.com');
+                setPassword('StaffPassword123!');
+              }}
+              className="w-full text-left p-2 rounded-lg bg-white border border-slate-200 hover:border-amber-300 hover:bg-amber-50/50 transition flex items-center justify-between"
+            >
+              <div>
+                <span className="font-semibold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded text-[10px] mr-1.5">STAFF</span>
+                <span className="font-mono text-slate-700">staff@fashionstore.com</span>
+              </div>
+              <span className="text-[11px] text-indigo-600 font-medium">Nạp &rarr;</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setEmail('customer@fashionstore.com');
+                setPassword('CustomerPassword123!');
+              }}
+              className="w-full text-left p-2 rounded-lg bg-white border border-slate-200 hover:border-blue-300 hover:bg-blue-50/50 transition flex items-center justify-between"
+            >
+              <div>
+                <span className="font-semibold text-blue-700 bg-blue-100 px-1.5 py-0.5 rounded text-[10px] mr-1.5">CUSTOMER</span>
+                <span className="font-mono text-slate-700">customer@fashionstore.com</span>
+              </div>
+              <span className="text-[11px] text-indigo-600 font-medium">Nạp &rarr;</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>

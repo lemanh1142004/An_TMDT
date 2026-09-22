@@ -27,32 +27,55 @@ public class DataInitializer implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
-        log.info("Checking initial system roles and default admin account...");
+        log.info("Checking initial system roles and default demo accounts...");
 
         // 1. Seed Roles
         Role customerRole = seedRole(RoleType.ROLE_CUSTOMER, "Khách hàng mua sắm");
         Role adminRole = seedRole(RoleType.ROLE_ADMIN, "Quản trị viên hệ thống");
-        seedRole(RoleType.ROLE_STAFF, "Nhân viên vận hành & quản lý đơn");
+        Role staffRole = seedRole(RoleType.ROLE_STAFF, "Nhân viên vận hành & quản lý đơn");
 
-        // 2. Seed Default Admin if not exists
-        String adminEmail = "admin@fashionstore.com";
-        if (!userRepository.existsByEmail(adminEmail)) {
-            Set<Role> roles = new HashSet<>();
-            roles.add(customerRole);
-            roles.add(adminRole);
+        // 2. Seed Default Admin
+        seedUserIfNotExists(
+                "admin@fashionstore.com",
+                "AdminPassword123!",
+                "Fashion Store Administrator",
+                "0901234567",
+                Set.of(adminRole, customerRole)
+        );
 
-            User admin = User.builder()
-                    .fullName("Fashion Store Administrator")
-                    .email(adminEmail)
-                    .password(passwordEncoder.encode("AdminPassword123!"))
-                    .phoneNumber("0901234567")
+        // 3. Seed Default Staff
+        seedUserIfNotExists(
+                "staff@fashionstore.com",
+                "StaffPassword123!",
+                "Nguyễn Văn Nhân Viên",
+                "0902345678",
+                Set.of(staffRole)
+        );
+
+        // 4. Seed Default Customer
+        seedUserIfNotExists(
+                "customer@fashionstore.com",
+                "CustomerPassword123!",
+                "Trần Thị Khách Hàng",
+                "0903456789",
+                Set.of(customerRole)
+        );
+    }
+
+    private void seedUserIfNotExists(String email, String rawPassword, String fullName, String phone, Set<Role> roles) {
+        if (!userRepository.existsByEmail(email)) {
+            User user = User.builder()
+                    .fullName(fullName)
+                    .email(email)
+                    .password(passwordEncoder.encode(rawPassword))
+                    .phoneNumber(phone)
                     .active(true)
                     .authProvider("LOCAL")
-                    .roles(roles)
+                    .roles(new HashSet<>(roles))
                     .build();
 
-            userRepository.save(admin);
-            log.info("Default administrator account created: {}", adminEmail);
+            userRepository.save(user);
+            log.info("Default account created: {} [{}]", email, roles.stream().map(r -> r.getName().name()).toList());
         }
     }
 
