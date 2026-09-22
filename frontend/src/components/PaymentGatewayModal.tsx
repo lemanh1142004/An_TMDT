@@ -19,6 +19,7 @@ import {
 import { useStore } from '../context/StoreContext';
 import type { Order } from '../context/StoreContext';
 import { useNavigate } from 'react-router-dom';
+import { STORE_BANK_CONFIG, getVietQrUrl } from '../config/bankConfig';
 
 interface PaymentGatewayModalProps {
   order: Order | null;
@@ -176,13 +177,13 @@ export const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
     return parts.join(' ');
   };
 
-  // VietQR URL
+  // Dynamic VietQR Napas 24/7 URL for BIDV 8893884656
   const vietQrAmount = order?.total || 0;
   const vietQrInfo = `FS ${order?.id || ''}`;
-  const vietQrImageUrl = `https://img.vietqr.io/image/VCB-102839482901-compact2.png?amount=${vietQrAmount}&addInfo=${encodeURIComponent(vietQrInfo)}&accountName=CTY%20CP%20THOI%20TRANG%20FASHION%20STORE`;
+  const vietQrImageUrl = getVietQrUrl(vietQrAmount, vietQrInfo);
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-3 sm:p-4 print:p-0">
+    <div className="fixed inset-0 z-[60] overflow-y-auto flex items-center justify-center p-3 sm:p-4 print:p-0">
       {/* Backdrop */}
       <div 
         onClick={() => {
@@ -424,8 +425,8 @@ export const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
                       <ShieldCheck className="w-4 h-4 text-emerald-600 flex-shrink-0" />
                       <span>Chuyển khoản liên ngân hàng <strong>Napas 247</strong> miễn phí & xác thực tức thì</span>
                     </div>
-                    <span className="text-[10px] bg-emerald-600 text-white px-2 py-0.5 rounded-full font-bold">
-                      Vietcombank
+                    <span className="text-[10px] bg-emerald-600 text-white px-2.5 py-0.5 rounded-full font-bold">
+                      {STORE_BANK_CONFIG.shortName} (Napas 247)
                     </span>
                   </div>
 
@@ -435,7 +436,7 @@ export const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
                       <div className="bg-white p-2.5 rounded-xl border border-slate-200 shadow-sm">
                         <img
                           src={vietQrImageUrl}
-                          alt="VietQR Napas 247"
+                          alt={`VietQR ${STORE_BANK_CONFIG.shortName} Napas 247`}
                           className="w-44 h-44 object-contain"
                         />
                       </div>
@@ -449,16 +450,18 @@ export const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
                       <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-2 text-xs">
                         <div className="flex justify-between items-center">
                           <span className="text-slate-500">Ngân hàng:</span>
-                          <strong className="text-slate-900 font-bold">Vietcombank (VCB)</strong>
+                          <strong className="text-slate-900 font-bold">{STORE_BANK_CONFIG.bankName}</strong>
                         </div>
 
                         <div className="flex justify-between items-center pt-1.5 border-t border-slate-200/80">
                           <span className="text-slate-500">Số tài khoản:</span>
                           <div className="flex items-center gap-2">
-                            <span className="font-mono font-bold text-indigo-700 text-sm">1028 3948 2901</span>
+                            <span className="font-mono font-extrabold text-indigo-700 text-sm tracking-wide">
+                              {STORE_BANK_CONFIG.accountNumber}
+                            </span>
                             <button
-                              onClick={() => copyToClipboard('102839482901', 'stk')}
-                              className="p-1 rounded hover:bg-slate-200 text-slate-600"
+                              onClick={() => copyToClipboard(STORE_BANK_CONFIG.accountNumber, 'stk')}
+                              className="p-1 rounded hover:bg-slate-200 text-slate-600 transition"
                               title="Sao chép STK"
                             >
                               {copiedField === 'stk' ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
@@ -468,16 +471,29 @@ export const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
 
                         <div className="flex justify-between items-center pt-1.5 border-t border-slate-200/80">
                           <span className="text-slate-500">Chủ tài khoản:</span>
-                          <strong className="text-slate-900 font-bold text-[11px]">CTY CP THOI TRANG FASHION STORE</strong>
+                          <div className="flex items-center gap-2">
+                            <strong className="text-slate-900 font-extrabold uppercase text-xs">
+                              {STORE_BANK_CONFIG.accountHolder}
+                            </strong>
+                            <button
+                              onClick={() => copyToClipboard(STORE_BANK_CONFIG.accountHolder, 'holder')}
+                              className="p-1 rounded hover:bg-slate-200 text-slate-600 transition"
+                              title="Sao chép tên chủ tài khoản"
+                            >
+                              {copiedField === 'holder' ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                            </button>
+                          </div>
                         </div>
 
                         <div className="flex justify-between items-center pt-1.5 border-t border-slate-200/80">
                           <span className="text-slate-500">Số tiền chính xác:</span>
                           <div className="flex items-center gap-2">
-                            <strong className="font-bold text-emerald-600 text-sm">{order.total.toLocaleString('vi-VN')} ₫</strong>
+                            <strong className="font-extrabold text-emerald-600 text-sm">
+                              {(order?.total || 0).toLocaleString('vi-VN')} ₫
+                            </strong>
                             <button
-                              onClick={() => copyToClipboard(String(order.total), 'amount')}
-                              className="p-1 rounded hover:bg-slate-200 text-slate-600"
+                              onClick={() => copyToClipboard(String(order?.total || 0), 'amount')}
+                              className="p-1 rounded hover:bg-slate-200 text-slate-600 transition"
                               title="Sao chép số tiền"
                             >
                               {copiedField === 'amount' ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
@@ -491,7 +507,7 @@ export const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
                             <span className="font-mono font-bold text-amber-900 text-xs">{vietQrInfo}</span>
                             <button
                               onClick={() => copyToClipboard(vietQrInfo, 'memo')}
-                              className="p-1 rounded hover:bg-amber-100 text-amber-800"
+                              className="p-1 rounded hover:bg-amber-100 text-amber-800 transition"
                               title="Sao chép cú pháp chuyển khoản"
                             >
                               {copiedField === 'memo' ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
@@ -505,7 +521,7 @@ export const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
                         <div className="flex items-center justify-between text-[11px]">
                           <span className="flex items-center gap-1.5 text-slate-300">
                             <RefreshCw className="w-3 h-3 text-emerald-400 animate-spin" />
-                            Đang tự động dò tìm giao dịch Vietcombank...
+                            Đang tự động dò tìm giao dịch {STORE_BANK_CONFIG.shortName}...
                           </span>
                           <span className="text-emerald-400 font-mono font-bold">{autoCheckProgress}%</span>
                         </div>
@@ -518,9 +534,9 @@ export const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
                       </div>
 
                       <button
-                        onClick={() => handleExecutePayment('BANK_TRANSFER', 'VIETQR', 'Vietcombank')}
+                        onClick={() => handleExecutePayment('BANK_TRANSFER', 'VIETQR', STORE_BANK_CONFIG.bankName)}
                         disabled={isProcessing}
-                        className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md shadow-emerald-200 flex items-center justify-center gap-2 transition"
+                        className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md shadow-emerald-200 flex items-center justify-center gap-2 transition cursor-pointer"
                       >
                         <CheckCircle className="w-4 h-4" />
                         Tôi đã chuyển khoản xong (Xác nhận ngay)

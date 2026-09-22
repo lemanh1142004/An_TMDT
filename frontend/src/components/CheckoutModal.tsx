@@ -388,16 +388,18 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   )}
 
                   {paymentMethod === 'Chuyển khoản' && (
-                    <div className="p-3 bg-emerald-50/70 border border-emerald-200 rounded-xl text-xs space-y-1 animate-fadeIn">
+                    <div className="p-3 bg-emerald-50/70 border border-emerald-200 rounded-xl text-xs space-y-1.5 animate-fadeIn">
                       <div className="flex items-center justify-between">
                         <strong className="text-emerald-900 font-bold flex items-center gap-1.5">
-                          <QrCode className="w-4 h-4 text-emerald-600" /> Chuyển khoản VietQR NAPAS 247
+                          <QrCode className="w-4 h-4 text-emerald-600" /> Chuyển khoản VietQR BIDV 24/7
                         </strong>
                         <span className="text-[10px] bg-emerald-600 text-white px-2 py-0.5 rounded-full font-semibold">Tự động</span>
                       </div>
-                      <p className="text-[11px] text-emerald-800">
-                        Cổng thanh toán VietQR với mã QR động và số tiền chính xác sẽ mở ngay khi bạn bấm Xác nhận đặt hàng.
-                      </p>
+                      <div className="text-[11px] text-emerald-800 leading-relaxed">
+                        Chuyển khoản ngân hàng <strong>BIDV</strong>: STK <strong className="font-mono text-emerald-950">8893884656</strong> (Chủ TK: <strong>LE VAN MANH</strong>).
+                        <br />
+                        Mã QR động chứa số tiền chính xác <strong className="text-emerald-900">{total.toLocaleString('vi-VN')} ₫</strong> sẽ mở ngay khi bạn bấm Xác nhận.
+                      </div>
                     </div>
                   )}
 
