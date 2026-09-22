@@ -145,23 +145,68 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     @Transactional
-    public OrderDto updateOrderStatus(Long id, UpdateOrderStatusRequest request) {
+    public OrderDto updateOrderStatus(Long id, UpdateOrderStatusRequest request, java.security.Principal principal) {
         Order order = orderRepository.findById(id)
                 .orElseThrow(() -> new AppException("Đơn hàng không tồn tại với ID: " + id, HttpStatus.NOT_FOUND));
 
-        order.setStatus(request.getStatus());
-        if (request.getStatus() == OrderStatus.DELIVERED) {
+        String callerEmail = principal != null ? principal.getName() : null;
+        boolean isStaffOrAdmin = false;
+        if (callerEmail != null) {
+            User caller = userRepository.findByEmail(callerEmail).orElse(null);
+            if (caller != null) {
+                isStaffOrAdmin = caller.getRoles().stream()
+                        .anyMatch(r -> r.getName() == com.fashionstore.backend.modules.user.entity.RoleType.ROLE_STAFF 
+                                || r.getName() == com.fashionstore.backend.modules.user.entity.RoleType.ROLE_ADMIN);
+            }
+        }
+
+        if (!isStaffOrAdmin) {
+            // Customer permissions check
+            if (callerEmail == null || !callerEmail.equalsIgnoreCase(order.getCustomerEmail())) {
+                throw new AppException("Bạn không có quyền cập nhật đơn hàng này.", HttpStatus.FORBIDDEN);
+            }
+            // Customer can only cancel PENDING order or confirm delivery for SHIPPED order
+            if (request.getStatus() == OrderStatus.CANCELLED) {
+                if (order.getStatus() != OrderStatus.PENDING) {
+                    throw new AppException("Chỉ có thể hủy đơn hàng khi đơn đang ở trạng thái Chờ duyệt.", HttpStatus.BAD_REQUEST);
+                }
+            } else if (request.getStatus() == OrderStatus.DELIVERED) {
+                if (order.getStatus() != OrderStatus.SHIPPED) {
+                    throw new AppException("Chỉ có thể xác nhận nhận hàng khi đơn đang ở trạng thái Đang giao.", HttpStatus.BAD_REQUEST);
+                }
+            } else {
+                throw new AppException("Khách hàng không được chuyển đơn hàng sang trạng thái này.", HttpStatus.FORBIDDEN);
+            }
+        }
+
+        OrderStatus oldStatus = order.getStatus();
+        OrderStatus newStatus = request.getStatus();
+
+        // If newly cancelled, restore product stock!
+        if (newStatus == OrderStatus.CANCELLED && oldStatus != OrderStatus.CANCELLED) {
+            for (OrderItem item : order.getItems()) {
+                if (item.getProduct() != null) {
+                    Product p = item.getProduct();
+                    p.setStock(p.getStock() + item.getQuantity());
+                    productRepository.save(p);
+                    log.info("Restored stock for product '{}' by +{}", p.getName(), item.getQuantity());
+                }
+            }
+        }
+
+        order.setStatus(newStatus);
+        if (newStatus == OrderStatus.DELIVERED) {
             order.setIsPaid(true);
         }
-        if (request.getCarrier() != null) {
+        if (request.getCarrier() != null && !request.getCarrier().isBlank()) {
             order.setCarrier(request.getCarrier());
         }
-        if (request.getTrackingCode() != null) {
+        if (request.getTrackingCode() != null && !request.getTrackingCode().isBlank()) {
             order.setTrackingCode(request.getTrackingCode());
         }
 
         Order saved = orderRepository.save(order);
-        log.info("Updated order ID={} to status {}", id, saved.getStatus());
+        log.info("Updated order ID={} from {} to status {} by {}", id, oldStatus, saved.getStatus(), callerEmail);
         return mapToDto(saved);
     }
 

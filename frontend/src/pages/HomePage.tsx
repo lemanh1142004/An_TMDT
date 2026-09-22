@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
   ShoppingBag, 
   ArrowRight, 
@@ -15,55 +15,108 @@ import {
   ChevronDown, 
   ChevronUp,
   Flame,
-  Tag
+  Tag,
+  Search,
+  SlidersHorizontal,
+  Eye,
+  Zap,
+  X
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { checkHealth } from '../services/api';
 import type { HealthCheckResponse } from '../types';
 import { useStore } from '../context/StoreContext';
 import type { Product } from '../context/StoreContext';
+import { ProductDetailModal } from '../components/ProductDetailModal';
+import { CheckoutModal } from '../components/CheckoutModal';
 
-const categories = [
-  {
-    title: 'Thời Trang Nữ',
-    subtitle: 'Hơn 450 mẫu thiết kế độc quyền',
+// Fallback images for dynamic categories if not provided
+const categoryImages: Record<string, { image: string; subtitle: string }> = {
+  'thoi-trang-nu': {
     image: 'https://images.unsplash.com/photo-1483985988355-763728e1935b?w=600&auto=format&fit=crop&q=80',
-    link: '#featured',
+    subtitle: 'Váy đầm dạ tiệc, áo kiểu & thời trang thiết kế nữ'
   },
-  {
-    title: 'Thời Trang Nam',
-    subtitle: 'Lịch lãm, hiện đại và chuẩn mực',
+  'thoi-trang-nam': {
     image: 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?w=600&auto=format&fit=crop&q=80',
-    link: '#featured',
+    subtitle: 'Blazer may đo, sơ mi Oxford & quần âu Sartorial'
   },
-  {
-    title: 'Phụ Kiện Cao Cấp',
-    subtitle: 'Túi da, thắt lưng & trang sức tối giản',
+  'phu-kien': {
     image: 'https://images.unsplash.com/photo-1509319117193-57bab727e09d?w=600&auto=format&fit=crop&q=80',
-    link: '#featured',
+    subtitle: 'Túi da Ý, thắt lưng, mũ beret & khăn lụa tơ tằm'
   },
-  {
-    title: 'Giày & Boots',
-    subtitle: 'Da thuộc thật 100% êm ái bền bỉ',
+  'unisex': {
     image: 'https://images.unsplash.com/photo-1549298916-b41d501d3772?w=600&auto=format&fit=crop&q=80',
-    link: '#featured',
+    subtitle: 'Hoodie, len dệt kim, jean ống suông phong cách tự do'
   },
-];
+};
 
 export const HomePage: React.FC = () => {
-  const { products, addToCart, setIsCartOpen } = useStore();
+  const { products, categories, addToCart, setIsCartOpen } = useStore();
   const [health, setHealth] = useState<HealthCheckResponse | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [showDevPanel, setShowDevPanel] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  const handleAddToCart = (product: Product) => {
+  // Category filter & Search & Sort state
+  const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [sortBy, setSortBy] = useState<'featured' | 'price-asc' | 'price-desc' | 'rating'>('featured');
+
+  // Modal states
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [isDetailOpen, setIsDetailOpen] = useState<boolean>(false);
+  const [isCheckoutOpen, setIsCheckoutOpen] = useState<boolean>(false);
+
+  const handleOpenDetail = (product: Product) => {
+    setSelectedProduct(product);
+    setIsDetailOpen(true);
+  };
+
+  const handleBuyNow = (product: Product, size: string, color: string, quantity: number) => {
+    addToCart(product, size, color, quantity);
+    setIsDetailOpen(false);
+    setIsCheckoutOpen(true);
+  };
+
+  const handleQuickAdd = (product: Product) => {
     addToCart(product, 'L', 'Tiêu chuẩn', 1);
     setIsCartOpen(true);
-    setToastMessage(`Đã thêm "${product.name}" vào giỏ hàng thành công!`);
+    setToastMessage(`Đã thêm "${product.name}" vào giỏ hàng!`);
     setTimeout(() => setToastMessage(null), 3000);
   };
+
+  const handleCategoryClick = (catName: string) => {
+    setSelectedCategory(catName);
+    const featuredElem = document.getElementById('featured');
+    if (featuredElem) {
+      featuredElem.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
+  // Filtered and sorted products
+  const filteredProducts = useMemo(() => {
+    let list = products.filter((p) => p.isActive);
+
+    if (selectedCategory !== 'ALL') {
+      list = list.filter((p) => p.category === selectedCategory);
+    }
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      list = list.filter((p) => p.name.toLowerCase().includes(q) || (p.description && p.description.toLowerCase().includes(q)));
+    }
+
+    if (sortBy === 'price-asc') {
+      list = [...list].sort((a, b) => a.price - b.price);
+    } else if (sortBy === 'price-desc') {
+      list = [...list].sort((a, b) => b.price - a.price);
+    } else if (sortBy === 'rating') {
+      list = [...list].sort((a, b) => b.rating - a.rating);
+    }
+
+    return list;
+  }, [products, selectedCategory, searchQuery, sortBy]);
 
   const handleTestConnection = async () => {
     setLoading(true);
@@ -92,6 +145,20 @@ export const HomePage: React.FC = () => {
         </div>
       )}
 
+      {/* Product Detail Modal */}
+      <ProductDetailModal
+        product={selectedProduct}
+        isOpen={isDetailOpen}
+        onClose={() => setIsDetailOpen(false)}
+        onBuyNow={handleBuyNow}
+      />
+
+      {/* Direct Checkout Modal from Buy Now */}
+      <CheckoutModal
+        isOpen={isCheckoutOpen}
+        onClose={() => setIsCheckoutOpen(false)}
+      />
+
       {/* Hero Banner */}
       <section className="relative rounded-3xl overflow-hidden shadow-2xl bg-slate-950 text-white min-h-[480px] sm:min-h-[560px] flex items-center">
         <div className="absolute inset-0 z-0 opacity-40">
@@ -116,7 +183,7 @@ export const HomePage: React.FC = () => {
           </h1>
 
           <p className="text-slate-300 text-base sm:text-lg leading-relaxed max-w-lg">
-            Khám phá những thiết kế tối giản, may đo chuẩn xác cùng chất liệu vải hữu cơ thân thiện môi trường. Định nghĩa phong cách sống hiện đại của bạn.
+            Khám phá những thiết kế tối giản, may đo chuẩn xác cùng chất liệu cao cấp thân thiện môi trường. Định nghĩa phong cách sống hiện đại của bạn.
           </p>
 
           <div className="flex flex-wrap items-center gap-4 pt-2">
@@ -124,7 +191,7 @@ export const HomePage: React.FC = () => {
               href="#featured"
               className="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl bg-white text-slate-950 font-bold text-sm hover:bg-slate-100 transition shadow-lg shadow-white/10"
             >
-              <ShoppingBag className="w-4 h-4 text-indigo-600" /> Mua sắm ngay
+              <ShoppingBag className="w-4 h-4 text-indigo-600" /> Mua sắm ngay ({products.length} sản phẩm)
             </a>
             <Link
               to="/register"
@@ -179,136 +246,266 @@ export const HomePage: React.FC = () => {
         </div>
       </section>
 
-      {/* Featured Categories */}
+      {/* Dynamic Categories Section from Database */}
       <section className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2">
           <div>
-            <span className="text-xs font-bold tracking-widest text-indigo-600 uppercase">Danh mục thịnh hành</span>
+            <span className="text-xs font-bold tracking-widest text-indigo-600 uppercase">Danh mục thịnh hành từ Database</span>
             <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight mt-1">
               Khám Phá Theo Nhóm Phong Cách
             </h2>
           </div>
-          <a href="#featured" className="text-sm font-semibold text-indigo-600 hover:text-indigo-700 flex items-center gap-1">
-            Xem tất cả danh mục <ArrowRight className="w-4 h-4" />
-          </a>
+          <span className="text-xs text-slate-500 font-medium">Bấm vào nhóm để xem sản phẩm</span>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {categories.map((cat, idx) => (
-            <div
-              key={idx}
-              className="group relative rounded-2xl overflow-hidden aspect-[4/5] shadow-sm hover:shadow-xl transition duration-300"
-            >
-              <img
-                src={cat.image}
-                alt={cat.title}
-                className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-950/20 to-transparent" />
-              <div className="absolute bottom-0 inset-x-0 p-5 text-white">
-                <h3 className="font-bold text-lg group-hover:text-indigo-300 transition">{cat.title}</h3>
-                <p className="text-xs text-slate-300 mt-1">{cat.subtitle}</p>
-                <span className="inline-flex items-center gap-1 text-xs font-semibold mt-3 text-white/90 group-hover:translate-x-1 transition">
-                  Khám phá <ArrowRight className="w-3.5 h-3.5" />
-                </span>
+          {categories.map((cat) => {
+            const meta = categoryImages[cat.slug] || {
+              image: 'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=600&auto=format&fit=crop&q=80',
+              subtitle: cat.description || 'Bộ sưu tập thời trang thiết kế cao cấp'
+            };
+            const productCount = products.filter(p => p.category === cat.name).length;
+
+            return (
+              <div
+                key={cat.id}
+                onClick={() => handleCategoryClick(cat.name)}
+                className="group relative rounded-2xl overflow-hidden aspect-[4/5] shadow-sm hover:shadow-xl transition duration-300 cursor-pointer"
+              >
+                <img
+                  src={meta.image}
+                  alt={cat.name}
+                  className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-slate-950/30 to-transparent" />
+                <div className="absolute bottom-0 inset-x-0 p-5 text-white">
+                  <div className="flex items-center justify-between mb-1">
+                    <h3 className="font-bold text-lg group-hover:text-indigo-300 transition">{cat.name}</h3>
+                    <span className="text-xs font-mono bg-white/20 px-2 py-0.5 rounded-full backdrop-blur">
+                      {productCount} mẫu
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-300 line-clamp-2">{cat.description || meta.subtitle}</p>
+                  <span className="inline-flex items-center gap-1 text-xs font-semibold mt-3 text-white/90 group-hover:translate-x-1 transition">
+                    Lọc sản phẩm <ArrowRight className="w-3.5 h-3.5" />
+                  </span>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </section>
 
-      {/* Featured Products Grid */}
-      <section id="featured" className="space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2">
+      {/* Featured Products Grid with Category Tabs & Filter */}
+      <section id="featured" className="space-y-8 scroll-mt-24">
+        {/* Section Header */}
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
               <Flame className="w-4 h-4 text-orange-500" />
-              <span className="text-xs font-bold tracking-widest text-orange-600 uppercase">Sản phẩm nổi bật</span>
+              <span className="text-xs font-bold tracking-widest text-orange-600 uppercase">Catalog Trực Tuyến</span>
             </div>
             <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight mt-1">
-              Bộ Sưu Tập Được Yêu Thích Nhất
+              Bộ Sưu Tập Thời Trang Thiết Kế
             </h2>
           </div>
-          <span className="text-xs text-slate-500 font-medium">Cập nhật xu hướng mới nhất hàng tuần</span>
+          <span className="text-xs text-slate-500 font-medium">
+            Hiển thị <strong>{filteredProducts.length}</strong> / {products.length} sản phẩm từ Database
+          </span>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-          {products.filter(p => p.isActive).map((p) => (
-            <div
-              key={p.id}
-              className="group bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs hover:shadow-xl transition-all duration-300 flex flex-col"
+        {/* Category Tabs & Controls Bar */}
+        <div className="bg-slate-50 p-3 sm:p-4 rounded-2xl border border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-3">
+          {/* Category Tabs */}
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 md:pb-0 scrollbar-none">
+            <button
+              onClick={() => setSelectedCategory('ALL')}
+              className={`px-3.5 py-2 rounded-xl text-xs font-bold transition flex-shrink-0 flex items-center gap-1.5 ${
+                selectedCategory === 'ALL'
+                  ? 'bg-slate-900 text-white shadow-md'
+                  : 'bg-white text-slate-600 hover:bg-slate-200 border border-slate-200'
+              }`}
             >
-              {/* Product Image */}
-              <div className="relative aspect-[3/4] bg-slate-100 overflow-hidden">
-                <img
-                  src={p.image}
-                  alt={p.name}
-                  className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
-                />
-                {p.tag && (
-                  <span className="absolute top-3 left-3 px-2.5 py-1 rounded-full bg-slate-900/90 backdrop-blur text-white text-[11px] font-bold shadow-md">
-                    {p.tag}
-                  </span>
-                )}
-                {p.stock <= 5 && p.stock > 0 && (
-                  <span className="absolute bottom-3 left-3 px-2 py-0.5 rounded bg-amber-500/90 text-white text-[10px] font-bold backdrop-blur">
-                    Chỉ còn {p.stock} chiếc
-                  </span>
-                )}
-                {p.stock === 0 && (
-                  <span className="absolute bottom-3 left-3 px-2 py-0.5 rounded bg-red-600/90 text-white text-[10px] font-bold backdrop-blur">
-                    Hết hàng
-                  </span>
-                )}
+              <span>Tất cả ({products.length})</span>
+            </button>
+            {categories.map((cat) => {
+              const count = products.filter(p => p.category === cat.name).length;
+              return (
                 <button
-                  className="absolute top-3 right-3 p-2 rounded-full bg-white/80 hover:bg-white text-slate-700 hover:text-red-500 shadow-md backdrop-blur transition"
-                  title="Thêm vào yêu thích"
+                  key={cat.id}
+                  onClick={() => setSelectedCategory(cat.name)}
+                  className={`px-3.5 py-2 rounded-xl text-xs font-bold transition flex-shrink-0 flex items-center gap-1.5 ${
+                    selectedCategory === cat.name
+                      ? 'bg-indigo-600 text-white shadow-md'
+                      : 'bg-white text-slate-600 hover:bg-slate-200 border border-slate-200'
+                  }`}
                 >
-                  <Heart className="w-4 h-4" />
+                  <span>{cat.name}</span>
+                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${selectedCategory === cat.name ? 'bg-indigo-700 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                    {count}
+                  </span>
                 </button>
-              </div>
+              );
+            })}
+          </div>
 
-              {/* Product Info */}
-              <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
-                <div>
-                  <div className="flex items-center justify-between text-xs text-slate-400 mb-1">
-                    <span>{p.category}</span>
-                    <div className="flex items-center gap-1 text-amber-500 font-semibold">
-                      <Star className="w-3.5 h-3.5 fill-amber-500" />
-                      <span>{p.rating}</span>
-                      <span className="text-slate-400">({p.reviewsCount})</span>
-                    </div>
-                  </div>
-                  <h3 className="font-bold text-slate-900 text-base group-hover:text-indigo-600 transition line-clamp-1">
-                    {p.name}
-                  </h3>
-                </div>
+          {/* Search & Sort Controls */}
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {/* Search Input */}
+            <div className="relative flex-1 sm:w-56">
+              <Search className="w-3.5 h-3.5 absolute left-3 top-3 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Tìm mẫu trang phục..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-8 pr-7 py-2 bg-white text-xs border border-slate-200 rounded-xl focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2 top-2.5 text-slate-400 hover:text-slate-600"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
 
-                <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
-                  <div>
-                    <div className="text-lg font-extrabold text-slate-900">
-                      {p.price.toLocaleString('vi-VN')} ₫
-                    </div>
-                    {p.originalPrice && (
-                      <div className="text-xs text-slate-400 line-through">
-                        {p.originalPrice.toLocaleString('vi-VN')} ₫
-                      </div>
-                    )}
+            {/* Sort Dropdown */}
+            <div className="relative">
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as any)}
+                className="pl-3 pr-8 py-2 bg-white text-xs font-semibold text-slate-700 border border-slate-200 rounded-xl focus:ring-1 focus:ring-indigo-500 focus:outline-none appearance-none cursor-pointer"
+              >
+                <option value="featured">Nổi bật</option>
+                <option value="price-asc">Giá: Thấp → Cao</option>
+                <option value="price-desc">Giá: Cao → Thấp</option>
+                <option value="rating">Đánh giá sao</option>
+              </select>
+              <SlidersHorizontal className="w-3 h-3 absolute right-2.5 top-3 text-slate-400 pointer-events-none" />
+            </div>
+          </div>
+        </div>
+
+        {/* Product Grid */}
+        {filteredProducts.length === 0 ? (
+          <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center space-y-3">
+            <p className="text-sm font-semibold text-slate-600">Không tìm thấy sản phẩm nào phù hợp với bộ lọc hiện tại.</p>
+            <button
+              onClick={() => { setSelectedCategory('ALL'); setSearchQuery(''); }}
+              className="px-4 py-2 bg-indigo-50 text-indigo-600 rounded-xl text-xs font-bold hover:bg-indigo-100 transition"
+            >
+              Đặt lại bộ lọc
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {filteredProducts.map((p) => (
+              <div
+                key={p.id}
+                className="group bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs hover:shadow-xl transition-all duration-300 flex flex-col"
+              >
+                {/* Product Image & Quick Preview trigger */}
+                <div 
+                  className="relative aspect-[3/4] bg-slate-100 overflow-hidden cursor-pointer"
+                  onClick={() => handleOpenDetail(p)}
+                >
+                  <img
+                    src={p.image}
+                    alt={p.name}
+                    className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
+                  />
+                  {p.tag && (
+                    <span className="absolute top-3 left-3 px-2.5 py-1 rounded-full bg-slate-900/90 backdrop-blur text-white text-[11px] font-bold shadow-md">
+                      {p.tag}
+                    </span>
+                  )}
+                  {p.stock <= 5 && p.stock > 0 && (
+                    <span className="absolute bottom-3 left-3 px-2 py-0.5 rounded bg-amber-500/90 text-white text-[10px] font-bold backdrop-blur">
+                      Chỉ còn {p.stock} chiếc
+                    </span>
+                  )}
+                  {p.stock === 0 && (
+                    <span className="absolute bottom-3 left-3 px-2 py-0.5 rounded bg-red-600/90 text-white text-[10px] font-bold backdrop-blur">
+                      Hết hàng
+                    </span>
+                  )}
+
+                  {/* Hover Overlay with Quick View Eye Icon */}
+                  <div className="absolute inset-0 bg-slate-900/20 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
+                    <span className="px-3 py-1.5 rounded-xl bg-white/95 text-slate-900 font-bold text-xs shadow-lg flex items-center gap-1.5 transform translate-y-2 group-hover:translate-y-0 transition">
+                      <Eye className="w-3.5 h-3.5 text-indigo-600" /> Xem chi tiết
+                    </span>
                   </div>
 
                   <button
-                    onClick={() => handleAddToCart(p)}
-                    disabled={p.stock === 0}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-indigo-600 disabled:bg-slate-300 text-white text-xs font-semibold shadow-sm transition"
+                    onClick={(e) => { e.stopPropagation(); }}
+                    className="absolute top-3 right-3 p-2 rounded-full bg-white/80 hover:bg-white text-slate-700 hover:text-red-500 shadow-md backdrop-blur transition z-10"
+                    title="Thêm vào yêu thích"
                   >
-                    <ShoppingBag className="w-3.5 h-3.5" />
-                    {p.stock === 0 ? 'Tạm hết' : 'Thêm giỏ'}
+                    <Heart className="w-4 h-4" />
                   </button>
                 </div>
+
+                {/* Product Info */}
+                <div className="p-4 flex-1 flex flex-col justify-between space-y-3">
+                  <div>
+                    <div className="flex items-center justify-between text-xs text-slate-400 mb-1">
+                      <span className="font-semibold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded text-[10px]">
+                        {p.category}
+                      </span>
+                      <div className="flex items-center gap-1 text-amber-500 font-semibold text-[11px]">
+                        <Star className="w-3 h-3 fill-amber-500" />
+                        <span>{p.rating.toFixed(1)}</span>
+                        <span className="text-slate-400">({p.reviewsCount})</span>
+                      </div>
+                    </div>
+                    <h3 
+                      onClick={() => handleOpenDetail(p)}
+                      className="font-bold text-slate-900 text-sm group-hover:text-indigo-600 transition line-clamp-2 cursor-pointer leading-snug"
+                    >
+                      {p.name}
+                    </h3>
+                  </div>
+
+                  <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
+                    <div>
+                      <div className="text-base font-extrabold text-slate-900">
+                        {p.price.toLocaleString('vi-VN')} ₫
+                      </div>
+                      {p.originalPrice && (
+                        <div className="text-[11px] text-slate-400 line-through">
+                          {p.originalPrice.toLocaleString('vi-VN')} ₫
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={() => handleOpenDetail(p)}
+                        disabled={p.stock === 0}
+                        className="px-2.5 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold transition flex items-center gap-1"
+                        title="Chọn size & màu"
+                      >
+                        <Zap className="w-3 h-3 text-amber-500 fill-amber-500" /> Mua
+                      </button>
+
+                      <button
+                        onClick={() => handleQuickAdd(p)}
+                        disabled={p.stock === 0}
+                        className="p-2 rounded-lg bg-slate-900 hover:bg-indigo-600 disabled:bg-slate-300 text-white transition shadow-xs"
+                        title="Thêm nhanh vào giỏ"
+                      >
+                        <ShoppingBag className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </section>
 
       {/* Lookbook / Promo Banner */}

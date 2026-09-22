@@ -13,7 +13,8 @@ import {
   X,
   FileText,
   Calendar,
-  MessageSquare
+  MessageSquare,
+  Truck
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useStore } from '../../context/StoreContext';
@@ -22,7 +23,7 @@ import type { Order, Product } from '../../context/StoreContext';
 export const StaffDashboard: React.FC = () => {
   const { user } = useAuth();
   const { orders, products, updateOrderStatus, restockProduct } = useStore();
-  const [activeTab, setActiveTab] = useState<'ALL' | 'PENDING' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED'>('PENDING');
+  const [activeTab, setActiveTab] = useState<'ALL' | 'PENDING' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED'>('PENDING');
   const [searchQuery, setSearchQuery] = useState('');
   const [notification, setNotification] = useState<string | null>(null);
 
@@ -33,6 +34,14 @@ export const StaffDashboard: React.FC = () => {
   const [restockingProduct, setRestockingProduct] = useState<Product | null>(null);
   const [restockQty, setRestockQty] = useState<number>(20);
 
+  // Handover to Shipping Carrier Modal
+  const [shippingModalOrder, setShippingModalOrder] = useState<Order | null>(null);
+  const [carrierName, setCarrierName] = useState('Giao Hàng Tiết Kiệm (GHTK)');
+  const [carrierTrackingCode, setCarrierTrackingCode] = useState('');
+
+  // Tracking Milestones Modal
+  const [trackingModalOrder, setTrackingModalOrder] = useState<Order | null>(null);
+
   const showToast = (msg: string) => {
     setNotification(msg);
     setTimeout(() => setNotification(null), 3500);
@@ -40,17 +49,42 @@ export const StaffDashboard: React.FC = () => {
 
   const handleApprove = async (orderId: string) => {
     await updateOrderStatus(orderId, 'PROCESSING');
-    showToast(`Đã duyệt đơn #${orderId}! Chuyển sang trạng thái Đóng gói & Xử lý.`);
+    showToast(`Đã duyệt đơn #${orderId}! Chuyển sang trạng thái Đóng gói & Chuẩn bị xuất kho.`);
   };
 
-  const handleShip = async (orderId: string) => {
-    await updateOrderStatus(orderId, 'SHIPPED');
-    showToast(`Đã bàn giao đơn #${orderId} cho đơn vị vận chuyển (GHTK Express)!`);
+  const handleOpenShipModal = (order: Order) => {
+    setShippingModalOrder(order);
+    setCarrierName('Giao Hàng Tiết Kiệm (GHTK)');
+    setCarrierTrackingCode('GHTK-' + Math.floor(10000000 + Math.random() * 90000000));
   };
 
-  const handleDeliver = async (orderId: string) => {
+  const handleCarrierChange = (newCarrier: string) => {
+    setCarrierName(newCarrier);
+    let prefix = 'GHTK-';
+    if (newCarrier.includes('Viettel')) prefix = 'VTP-';
+    else if (newCarrier.includes('J&T')) prefix = 'JT-';
+    else if (newCarrier.includes('VNPost')) prefix = 'VNP-';
+    setCarrierTrackingCode(prefix + Math.floor(10000000 + Math.random() * 90000000));
+  };
+
+  const handleConfirmHandover = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!shippingModalOrder) return;
+    await updateOrderStatus(shippingModalOrder.id, 'SHIPPED', carrierName, carrierTrackingCode);
+    showToast(`Đã bàn giao đơn #${shippingModalOrder.id} cho ${carrierName}! Mã vận đơn: ${carrierTrackingCode}`);
+    setShippingModalOrder(null);
+  };
+
+  const handleReconcileDelivered = async (orderId: string) => {
     await updateOrderStatus(orderId, 'DELIVERED');
-    showToast(`Đơn #${orderId} đã được xác nhận giao thành công!`);
+    showToast(`Đã đối soát với ĐVVC: Đơn #${orderId} giao thành công.`);
+  };
+
+  const handleCancelOrder = async (orderId: string, reason: string) => {
+    if (window.confirm(`Xác nhận hủy đơn hàng #${orderId}? (${reason})`)) {
+      await updateOrderStatus(orderId, 'CANCELLED');
+      showToast(`Đã hủy đơn hàng #${orderId}. Số lượng tồn kho đã được hoàn trả lại.`);
+    }
   };
 
   const handleConfirmRestock = async (e: React.FormEvent) => {
@@ -80,6 +114,7 @@ export const StaffDashboard: React.FC = () => {
     PROCESSING: orders.filter((o) => o.status === 'PROCESSING').length,
     SHIPPED: orders.filter((o) => o.status === 'SHIPPED').length,
     DELIVERED: orders.filter((o) => o.status === 'DELIVERED').length,
+    CANCELLED: orders.filter((o) => o.status === 'CANCELLED').length,
   };
 
   return (
@@ -202,6 +237,16 @@ export const StaffDashboard: React.FC = () => {
               Hoàn tất ({counts.DELIVERED})
             </button>
             <button
+              onClick={() => setActiveTab('CANCELLED')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition whitespace-nowrap ${
+                activeTab === 'CANCELLED'
+                  ? 'bg-red-600 text-white shadow-sm'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              Đã hủy ({counts.CANCELLED})
+            </button>
+            <button
               onClick={() => setActiveTab('ALL')}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition whitespace-nowrap ${
                 activeTab === 'ALL'
@@ -305,35 +350,66 @@ export const StaffDashboard: React.FC = () => {
                       </button>
 
                       {order.status === 'PENDING' && (
-                        <button
-                          onClick={() => handleApprove(order.id)}
-                          className="inline-flex items-center gap-1.5 px-3 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-xs font-semibold shadow-sm transition"
-                        >
-                          <CheckCircle className="w-3.5 h-3.5" /> Duyệt đơn
-                        </button>
+                        <>
+                          <button
+                            onClick={() => handleApprove(order.id)}
+                            className="inline-flex items-center gap-1.5 px-3 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-xs font-semibold shadow-sm transition"
+                          >
+                            <CheckCircle className="w-3.5 h-3.5" /> Duyệt & Đóng gói
+                          </button>
+                          <button
+                            onClick={() => handleCancelOrder(order.id, 'Nhân viên hủy theo yêu cầu hoặc sai sót')}
+                            className="inline-flex items-center gap-1 px-2.5 py-2 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg text-xs font-medium transition"
+                          >
+                            <X className="w-3.5 h-3.5" /> Hủy đơn
+                          </button>
+                        </>
                       )}
 
                       {order.status === 'PROCESSING' && (
                         <button
-                          onClick={() => handleShip(order.id)}
+                          onClick={() => handleOpenShipModal(order)}
                           className="inline-flex items-center gap-1.5 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold shadow-sm transition"
                         >
-                          <Send className="w-3.5 h-3.5" /> Giao bưu tá
+                          <Send className="w-3.5 h-3.5" /> Bàn giao ĐVVC
                         </button>
                       )}
 
                       {order.status === 'SHIPPED' && (
-                        <button
-                          onClick={() => handleDeliver(order.id)}
-                          className="inline-flex items-center gap-1.5 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold shadow-sm transition"
-                        >
-                          <CheckCircle className="w-3.5 h-3.5" /> Xác nhận đã giao
-                        </button>
+                        <>
+                          <button
+                            onClick={() => setTrackingModalOrder(order)}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-indigo-200 bg-indigo-50/60 text-indigo-700 hover:bg-indigo-100 text-xs font-semibold transition"
+                            title="Xem lộ trình vận chuyển"
+                          >
+                            <Truck className="w-3.5 h-3.5 text-indigo-600" /> Tra cứu ĐVVC
+                          </button>
+                          <button
+                            onClick={() => handleReconcileDelivered(order.id)}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold shadow-sm transition"
+                            title="Bưu tá báo đã phát thành công"
+                          >
+                            <CheckCircle className="w-3.5 h-3.5" /> Đối soát: Đã phát
+                          </button>
+                          <button
+                            onClick={() => handleCancelOrder(order.id, 'Bưu tá báo hoàn hàng / Khách không nhận')}
+                            className="inline-flex items-center gap-1 px-2 py-1.5 text-red-600 hover:bg-red-50 rounded-lg text-xs font-medium transition"
+                            title="Báo hoàn hàng"
+                          >
+                            <X className="w-3.5 h-3.5" /> Báo hoàn
+                          </button>
+                        </>
                       )}
 
                       {order.status === 'DELIVERED' && (
                         <span className="inline-flex items-center gap-1 text-xs text-emerald-700 font-semibold bg-emerald-50 px-2.5 py-1.5 rounded-lg border border-emerald-200">
-                          <CheckCircle className="w-3.5 h-3.5" /> Đã hoàn tất
+                          <CheckCircle className="w-3.5 h-3.5" /> Giao thành công
+                        </span>
+                      )}
+
+                      {order.status === 'CANCELLED' && (
+                        <span className="inline-flex items-center gap-1 text-xs text-red-700 font-semibold bg-red-50 px-2.5 py-1.5 rounded-lg border border-red-200">
+                          <X className="w-3.5 h-3.5" /> Đã hủy đơn
                         </span>
                       )}
                     </div>
@@ -465,6 +541,152 @@ export const StaffDashboard: React.FC = () => {
                 className="inline-flex items-center gap-1.5 px-4 py-2 bg-slate-900 hover:bg-indigo-600 text-white text-xs font-bold rounded-lg shadow-sm transition"
               >
                 <Printer className="w-4 h-4" /> In phiếu ngay
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Handover to Shipping Carrier Modal */}
+      {shippingModalOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div onClick={() => setShippingModalOrder(null)} className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs" />
+          <div className="relative bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 z-10 animate-fadeIn space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <Truck className="w-5 h-5 text-blue-600" />
+                <h3 className="font-bold text-slate-900 text-base">Bàn giao Đơn vị Vận chuyển</h3>
+              </div>
+              <button onClick={() => setShippingModalOrder(null)} className="p-1 rounded-lg text-slate-400 hover:text-slate-700">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleConfirmHandover} className="space-y-3.5 text-xs">
+              <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/60 space-y-1">
+                <div>Đơn hàng: <strong className="font-mono text-slate-900">#{shippingModalOrder.id}</strong></div>
+                <div>Khách nhận: <strong>{shippingModalOrder.customerName}</strong> ({shippingModalOrder.phone})</div>
+                <div className="text-slate-500 truncate">Địa chỉ: {shippingModalOrder.address}</div>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Đơn vị vận chuyển đối tác *</label>
+                <select
+                  value={carrierName}
+                  onChange={(e) => handleCarrierChange(e.target.value)}
+                  className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:ring-1 focus:ring-blue-500 focus:outline-none cursor-pointer"
+                >
+                  <option value="Giao Hàng Tiết Kiệm (GHTK)">Giao Hàng Tiết Kiệm (GHTK)</option>
+                  <option value="Viettel Post Express">Viettel Post Express</option>
+                  <option value="J&T Express">J&T Express</option>
+                  <option value="VNPost Nhanh (Bưu điện VN)">VNPost Nhanh (Bưu điện VN)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Mã vận đơn đối soát bưu cục *</label>
+                <input
+                  type="text"
+                  required
+                  value={carrierTrackingCode}
+                  onChange={(e) => setCarrierTrackingCode(e.target.value)}
+                  className="w-full px-3 py-2 text-xs font-mono font-bold border border-slate-200 rounded-lg focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                />
+                <p className="text-[10px] text-slate-400 mt-1">Mã vận đơn được cấp bởi bưu cục để khách hàng và nhân viên tra cứu hành trình.</p>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setShippingModalOrder(null)}
+                  className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg font-semibold"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-sm transition"
+                >
+                  <Send className="w-3.5 h-3.5" /> Xác nhận gửi hàng
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Courier Tracking Milestones Modal */}
+      {trackingModalOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div onClick={() => setTrackingModalOrder(null)} className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs" />
+          <div className="relative bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 z-10 animate-fadeIn space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <Truck className="w-5 h-5 text-indigo-600" />
+                <h3 className="font-bold text-slate-900 text-base">Hành trình Vận chuyển</h3>
+              </div>
+              <button onClick={() => setTrackingModalOrder(null)} className="p-1 rounded-lg text-slate-400 hover:text-slate-700">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="bg-indigo-50/60 p-3.5 rounded-xl border border-indigo-100 space-y-1 text-xs">
+              <div className="flex justify-between">
+                <span className="text-slate-500">Đơn vị vận chuyển:</span>
+                <strong className="text-indigo-700">{trackingModalOrder.carrier}</strong>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Mã vận đơn:</span>
+                <strong className="font-mono text-slate-900">{trackingModalOrder.trackingCode}</strong>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Người nhận:</span>
+                <span>{trackingModalOrder.customerName} ({trackingModalOrder.phone})</span>
+              </div>
+              <div className="text-slate-500 text-[11px] pt-1">
+                Giao tới: {trackingModalOrder.address}
+              </div>
+            </div>
+
+            {/* Courier Steps */}
+            <div className="space-y-4 py-2 text-xs">
+              <div className="flex gap-3 items-start">
+                <div className="w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center flex-shrink-0 text-[10px] font-bold mt-0.5">
+                  ✓
+                </div>
+                <div>
+                  <div className="font-bold text-slate-900">Bưu tá đã tiếp nhận kiện hàng tại kho</div>
+                  <div className="text-[11px] text-slate-400">Kiện hàng đã xuất khỏi kho Fashion Store và được quét mã vạch.</div>
+                </div>
+              </div>
+
+              <div className="flex gap-3 items-start">
+                <div className="w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center flex-shrink-0 text-[10px] font-bold mt-0.5">
+                  •
+                </div>
+                <div>
+                  <div className="font-bold text-slate-900">Đang luân chuyển qua Trung tâm Khai thác & Chia chọn</div>
+                  <div className="text-[11px] text-slate-400">Kiện hàng đang trung chuyển đến bưu cục phát gần nhất.</div>
+                </div>
+              </div>
+
+              <div className="flex gap-3 items-start">
+                <div className="w-6 h-6 rounded-full bg-amber-400 text-white flex items-center justify-center flex-shrink-0 text-[10px] font-bold mt-0.5">
+                  •
+                </div>
+                <div>
+                  <div className="font-bold text-slate-900">Bưu tá đang trên đường đi giao</div>
+                  <div className="text-[11px] text-slate-400">Bưu tá sẽ liên hệ số điện thoại {trackingModalOrder.phone} trước khi phát hàng.</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-2 border-t border-slate-100">
+              <button
+                onClick={() => setTrackingModalOrder(null)}
+                className="px-4 py-2 bg-slate-900 text-white rounded-lg text-xs font-semibold hover:bg-indigo-600 transition"
+              >
+                Đóng
               </button>
             </div>
           </div>

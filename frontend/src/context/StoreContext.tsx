@@ -19,6 +19,14 @@ export interface Product {
   isActive: boolean;
 }
 
+export interface Category {
+  id: number;
+  name: string;
+  slug: string;
+  description?: string;
+  imageUrl?: string;
+}
+
 export interface CartItem {
   product: Product;
   quantity: number;
@@ -28,6 +36,7 @@ export interface CartItem {
 
 export interface Order {
   id: string;
+  numericId?: number;
   customerEmail: string;
   customerName: string;
   phone: string;
@@ -65,6 +74,7 @@ export interface UserAccount {
 
 interface StoreContextType {
   products: Product[];
+  categories: Category[];
   cart: CartItem[];
   orders: Order[];
   users: UserAccount[];
@@ -77,16 +87,8 @@ interface StoreContextType {
   removeFromCart: (index: number) => void;
   clearCart: () => void;
   // Order operations
-  createOrder: (orderData: {
-    customerEmail: string;
-    customerName: string;
-    phone: string;
-    address: string;
-    paymentMethod: 'COD' | 'VNPAY' | 'Chuyển khoản';
-    discountCode?: string;
-    note?: string;
-  }) => Promise<Order>;
-  updateOrderStatus: (orderId: string, status: Order['status']) => Promise<void>;
+  createOrder: (orderData: any) => Promise<Order>;
+  updateOrderStatus: (orderId: string, status: Order['status'], carrier?: string, trackingCode?: string) => Promise<void>;
   // Inventory & Product operations
   restockProduct: (productId: number, addedQty: number) => Promise<void>;
   addProduct: (productData: Omit<Product, 'id' | 'rating' | 'reviewsCount' | 'isActive'>) => Promise<void>;
@@ -103,6 +105,7 @@ const StoreContext = createContext<StoreContextType | undefined>(undefined);
 export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, isAuthenticated } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [users, setUsers] = useState<UserAccount[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -122,10 +125,14 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // Fetch real data from backend
   const fetchProducts = useCallback(async () => {
     try {
-      const data = await productService.getAll(false);
-      setProducts(data);
+      const [prodData, catData] = await Promise.all([
+        productService.getAll(false),
+        productService.getCategories(),
+      ]);
+      setProducts(prodData);
+      setCategories(catData);
     } catch (err) {
-      console.warn('Could not fetch products from backend, using fallback:', err);
+      console.warn('Could not fetch products/categories from backend, using fallback:', err);
     }
   }, []);
 
@@ -239,18 +246,17 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  const updateOrderStatus = async (orderId: string, status: Order['status']) => {
+  const updateOrderStatus = async (orderId: string, status: Order['status'], carrier?: string, trackingCode?: string) => {
     try {
-      // Find numeric ID if orderId is "ORD-2026-901"
-      const foundOrder = orders.find((o) => o.id === orderId);
-      const targetId = foundOrder ? orderId.replace('ORD-2026-', '') : orderId;
+      const foundOrder = orders.find((o) => o.id === orderId || String(o.numericId) === orderId);
+      const targetId = foundOrder?.numericId || (orderId.startsWith('ORD-2026-') ? orderId.replace('ORD-2026-', '') : orderId);
 
-      await orderService.updateStatus(targetId, { status });
+      await orderService.updateStatus(targetId, { status, carrier, trackingCode });
       await fetchOrders();
     } catch (err) {
       console.error('Failed to update order status on backend:', err);
       // Optimistic update
-      setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, status } : o)));
+      setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, status, carrier: carrier || o.carrier, trackingCode: trackingCode || o.trackingCode } : o)));
     }
   };
 
@@ -326,6 +332,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     <StoreContext.Provider
       value={{
         products,
+        categories,
         cart,
         orders,
         users,

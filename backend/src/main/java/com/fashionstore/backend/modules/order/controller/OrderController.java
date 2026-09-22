@@ -51,11 +51,12 @@ public class OrderController {
     }
 
     @PatchMapping("/{id}/status")
-    @PreAuthorize("hasAnyAuthority('ROLE_STAFF', 'ROLE_ADMIN')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<OrderDto> updateOrderStatus(
             @PathVariable Long id,
-            @Valid @RequestBody UpdateOrderStatusRequest request
+            @Valid @RequestBody UpdateOrderStatusRequest request,
+            Principal principal
     ) {
-        return ResponseEntity.ok(orderService.updateOrderStatus(id, request));
+        return ResponseEntity.ok(orderService.updateOrderStatus(id, request, principal));
     }
 }

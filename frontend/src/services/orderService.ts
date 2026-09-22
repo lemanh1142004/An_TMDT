@@ -57,6 +57,7 @@ export const orderService = {
 function mapBackendOrder(data: any): Order {
   return {
     id: data.orderCode || `ORD-2026-${data.id}`,
+    numericId: data.id,
     customerEmail: data.customerEmail,
     customerName: data.customerName,
     phone: data.phone,

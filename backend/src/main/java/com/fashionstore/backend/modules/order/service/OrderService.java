@@ -11,5 +11,5 @@ public interface OrderService {
     List<OrderDto> getMyOrders(String userEmail);
     List<OrderDto> getAllOrders();
     OrderDto getOrderById(Long id);
-    OrderDto updateOrderStatus(Long id, UpdateOrderStatusRequest request);
+    OrderDto updateOrderStatus(Long id, UpdateOrderStatusRequest request, java.security.Principal principal);
 }

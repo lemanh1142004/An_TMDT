@@ -11,7 +11,9 @@ import {
   Sparkles,
   Package,
   Calendar,
-  AlertCircle
+  AlertCircle,
+  CheckCircle,
+  X
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useStore } from '../../context/StoreContext';
@@ -31,13 +33,32 @@ const mockWishlist = [
 
 export const CustomerDashboard: React.FC = () => {
   const { user } = useAuth();
-  const { orders } = useStore();
+  const { orders, updateOrderStatus } = useStore();
   const [activeTab, setActiveTab] = useState<'orders' | 'vouchers' | 'addresses' | 'wishlist'>('orders');
+  const [customerToast, setCustomerToast] = useState<string | null>(null);
+  const [trackingOrder, setTrackingOrder] = useState<Order | null>(null);
 
-  // Filter orders for the current customer (or demo customer)
-  const myOrders = orders.filter(
-    (o) => o.customerEmail === user?.email || o.customerName === user?.fullName || orders.length > 0
-  );
+  const showToast = (msg: string) => {
+    setCustomerToast(msg);
+    setTimeout(() => setCustomerToast(null), 3500);
+  };
+
+  // Filter orders for the current customer
+  const myOrders = user?.email
+    ? orders.filter((o) => o.customerEmail === user.email)
+    : orders;
+
+  const handleConfirmReceipt = async (orderId: string) => {
+    await updateOrderStatus(orderId, 'DELIVERED');
+    showToast(`Xác nhận đã nhận hàng thành công cho đơn #${orderId}! Cảm ơn bạn đã mua sắm.`);
+  };
+
+  const handleCancelOrder = async (orderId: string) => {
+    if (window.confirm(`Bạn có chắc chắn muốn hủy đơn hàng #${orderId} không?`)) {
+      await updateOrderStatus(orderId, 'CANCELLED');
+      showToast(`Đã hủy đơn hàng #${orderId} thành công.`);
+    }
+  };
 
   const renderTimeline = (status: Order['status']) => {
     const steps = [
@@ -240,10 +261,37 @@ export const CustomerDashboard: React.FC = () => {
                   </div>
                 )}
 
-                <div className="flex justify-end gap-3 pt-2">
+                <div className="flex flex-wrap items-center justify-end gap-2.5 pt-2 border-t border-slate-100">
+                  {order.status === 'SHIPPED' && (
+                    <>
+                      <button
+                        onClick={() => setTrackingOrder(order)}
+                        className="px-3.5 py-2 rounded-xl border border-indigo-200 bg-indigo-50/70 text-indigo-700 hover:bg-indigo-100 text-xs font-semibold transition flex items-center gap-1.5"
+                      >
+                        <Truck className="w-3.5 h-3.5" /> Tra cứu bưu tá
+                      </button>
+
+                      <button
+                        onClick={() => handleConfirmReceipt(order.id)}
+                        className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-200 transition flex items-center gap-1.5"
+                      >
+                        <CheckCircle className="w-3.5 h-3.5" /> Đã nhận được hàng
+                      </button>
+                    </>
+                  )}
+
+                  {order.status === 'PENDING' && (
+                    <button
+                      onClick={() => handleCancelOrder(order.id)}
+                      className="px-3.5 py-2 rounded-xl border border-red-200 text-red-600 hover:bg-red-50 text-xs font-semibold transition flex items-center gap-1.5"
+                    >
+                      <X className="w-3.5 h-3.5" /> Hủy đơn hàng
+                    </button>
+                  )}
+
                   <Link
                     to="/"
-                    className="px-4 py-2 rounded-lg bg-slate-900 hover:bg-indigo-600 text-white text-xs font-semibold transition"
+                    className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition"
                   >
                     Tiếp tục mua sắm
                   </Link>
@@ -323,6 +371,90 @@ export const CustomerDashboard: React.FC = () => {
           <button className="w-full py-4 border-2 border-dashed border-slate-300 rounded-xl text-slate-500 hover:text-indigo-600 hover:border-indigo-300 transition flex items-center justify-center gap-2 text-xs font-semibold">
             <Plus className="w-4 h-4" /> Thêm địa chỉ nhận hàng mới
           </button>
+        </div>
+      )}
+
+      {/* Toast Notification */}
+      {customerToast && (
+        <div className="fixed bottom-6 right-6 z-50 bg-slate-900 text-white px-5 py-3 rounded-xl shadow-2xl flex items-center gap-3 border border-slate-700 animate-fadeIn">
+          <CheckCircle className="w-5 h-5 text-emerald-400 flex-shrink-0" />
+          <span className="text-sm font-medium">{customerToast}</span>
+        </div>
+      )}
+
+      {/* Customer Tracking Milestones Modal */}
+      {trackingOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div onClick={() => setTrackingOrder(null)} className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs" />
+          <div className="relative bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 z-10 animate-fadeIn space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <Truck className="w-5 h-5 text-indigo-600" />
+                <h3 className="font-bold text-slate-900 text-base">Hành trình Đơn hàng #{trackingOrder.id}</h3>
+              </div>
+              <button onClick={() => setTrackingOrder(null)} className="p-1 rounded-lg text-slate-400 hover:text-slate-700">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="bg-indigo-50/70 p-3.5 rounded-xl border border-indigo-100 space-y-1 text-xs">
+              <div className="flex justify-between">
+                <span className="text-slate-500">Đơn vị vận chuyển:</span>
+                <strong className="text-indigo-700">{trackingOrder.carrier}</strong>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Mã vận đơn bưu cục:</span>
+                <strong className="font-mono text-slate-900">{trackingOrder.trackingCode}</strong>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Địa chỉ giao:</span>
+                <span className="truncate max-w-[260px]">{trackingOrder.address}</span>
+              </div>
+            </div>
+
+            {/* Steps */}
+            <div className="space-y-4 py-2 text-xs">
+              <div className="flex gap-3 items-start">
+                <div className="w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center flex-shrink-0 text-[10px] font-bold mt-0.5">
+                  ✓
+                </div>
+                <div>
+                  <div className="font-bold text-slate-900">Kiện hàng đã xuất kho Fashion Store</div>
+                  <div className="text-[11px] text-slate-400">Đơn vị vận chuyển đã ký nhận và lấy kiện hàng khỏi kho.</div>
+                </div>
+              </div>
+
+              <div className="flex gap-3 items-start">
+                <div className="w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center flex-shrink-0 text-[10px] font-bold mt-0.5">
+                  •
+                </div>
+                <div>
+                  <div className="font-bold text-slate-900">Đang luân chuyển qua Trung tâm Khai thác Bưu chính</div>
+                  <div className="text-[11px] text-slate-400">Kiện hàng đang được phân loại và hướng về bưu cục gần địa chỉ của bạn.</div>
+                </div>
+              </div>
+
+              <div className="flex gap-3 items-start">
+                <div className="w-6 h-6 rounded-full bg-amber-400 text-white flex items-center justify-center flex-shrink-0 text-[10px] font-bold mt-0.5">
+                  •
+                </div>
+                <div>
+                  <div className="font-bold text-slate-900">Bưu tá đang phát hàng</div>
+                  <div className="text-[11px] text-slate-400">Vui lòng để ý điện thoại ({trackingOrder.phone}), bưu tá sẽ liên hệ trước khi giao.</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-between items-center pt-2 border-t border-slate-100">
+              <span className="text-[11px] text-slate-400">Đồng kiểm tra hàng trước khi nhận</span>
+              <button
+                onClick={() => setTrackingOrder(null)}
+                className="px-4 py-2 bg-slate-900 text-white rounded-lg text-xs font-semibold hover:bg-indigo-600 transition"
+              >
+                Đóng
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

@@ -234,6 +234,62 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
                     <span className="text-xs">Chuyển khoản</span>
                   </button>
                 </div>
+
+                {/* Dynamic Payment Method Guidance */}
+                <div className="mt-2.5">
+                  {paymentMethod === 'COD' && (
+                    <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-600 flex items-start gap-2 animate-fadeIn">
+                      <CheckCircle className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <strong className="text-slate-800">Thanh toán tiền mặt khi nhận hàng (COD):</strong>
+                        <p className="text-[11px] text-slate-500 mt-0.5">
+                          Quý khách thanh toán tiền mặt trực tiếp cho bưu tá khi nhận kiện hàng. Được quyền đồng kiểm tra hàng trước khi trả tiền.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {paymentMethod === 'VNPAY' && (
+                    <div className="p-3.5 bg-blue-50/70 border border-blue-200 rounded-xl text-xs space-y-2 animate-fadeIn">
+                      <div className="flex items-center justify-between">
+                        <strong className="text-blue-900 font-bold flex items-center gap-1.5">
+                          <CreditCard className="w-4 h-4 text-blue-600" /> Quét mã VNPAY-QR
+                        </strong>
+                        <span className="text-[10px] bg-blue-600 text-white px-2 py-0.5 rounded-full font-semibold">Tự động</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="bg-white p-1.5 rounded-lg border border-blue-200 shadow-2xs flex-shrink-0">
+                          <img
+                            src={`https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=VNPAY-FASHIONSTORE-TOTAL-${total}`}
+                            alt="VNPAY QR"
+                            className="w-20 h-20"
+                          />
+                        </div>
+                        <div className="text-[11px] text-blue-800 space-y-1">
+                          <p>Mở app Mobile Banking (VCB, Vietin, MB, Techcombank...) hoặc MoMo quét mã thanh toán <strong>{total.toLocaleString('vi-VN')} ₫</strong>.</p>
+                          <p className="text-slate-500">Đơn hàng được xác nhận tự động ngay sau khi quét.</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {paymentMethod === 'Chuyển khoản' && (
+                    <div className="p-3.5 bg-emerald-50/70 border border-emerald-200 rounded-xl text-xs space-y-2 animate-fadeIn">
+                      <div className="flex items-center justify-between">
+                        <strong className="text-emerald-900 font-bold flex items-center gap-1.5">
+                          <ShieldCheck className="w-4 h-4 text-emerald-600" /> Chuyển khoản VietQR NAPAS 247
+                        </strong>
+                        <span className="text-[10px] bg-emerald-600 text-white px-2 py-0.5 rounded-full font-semibold">Vietcombank</span>
+                      </div>
+                      <div className="bg-white p-3 rounded-lg border border-emerald-100 space-y-1 font-mono text-[11px] text-slate-800">
+                        <div>Ngân hàng: <strong>Vietcombank (CN TP.HCM)</strong></div>
+                        <div>Số TK: <strong className="text-indigo-600 font-bold text-xs">1028 3948 2901</strong></div>
+                        <div>Chủ TK: <strong>CTY CP THOI TRANG FASHION STORE</strong></div>
+                        <div>Nội dung CK: <strong className="text-emerald-700">FS {phone.replace(/\s+/g, '')}</strong></div>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Voucher Input */}
