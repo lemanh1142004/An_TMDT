@@ -51,18 +51,29 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
     }
   };
 
-  const handleConfirmOrder = (e: React.FormEvent) => {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  const handleConfirmOrder = async (e: React.FormEvent) => {
     e.preventDefault();
-    const order = createOrder({
-      customerEmail: user?.email || 'customer@fashionstore.com',
-      customerName,
-      phone,
-      address,
-      paymentMethod,
-      discountCode: appliedVoucher || undefined,
-      note,
-    });
-    setCreatedOrder(order);
+    setIsSubmitting(true);
+    setSubmitError(null);
+    try {
+      const order = await createOrder({
+        customerEmail: user?.email || 'customer@fashionstore.com',
+        customerName,
+        phone,
+        address,
+        paymentMethod,
+        discountCode: appliedVoucher || undefined,
+        note,
+      });
+      setCreatedOrder(order);
+    } catch (err: any) {
+      setSubmitError(err.response?.data?.message || 'Không thể tạo đơn hàng. Vui lòng thử lại.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleFinish = () => {
@@ -291,11 +302,18 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
                 </div>
               </div>
 
+              {submitError && (
+                <div className="p-3 bg-red-50 text-red-700 text-xs rounded-lg border border-red-200">
+                  {submitError}
+                </div>
+              )}
+
               <button
                 type="submit"
-                className="w-full py-3 rounded-xl bg-slate-900 hover:bg-indigo-600 text-white font-bold text-xs shadow-lg transition"
+                disabled={isSubmitting}
+                className="w-full py-3 rounded-xl bg-slate-900 hover:bg-indigo-600 disabled:opacity-50 text-white font-bold text-xs shadow-lg transition"
               >
-                Xác Nhận Đặt Hàng ({total.toLocaleString('vi-VN')} ₫)
+                {isSubmitting ? 'Đang gửi đơn hàng lên hệ thống...' : `Xác Nhận Đặt Hàng (${total.toLocaleString('vi-VN')} ₫)`}
               </button>
             </form>
           </div>

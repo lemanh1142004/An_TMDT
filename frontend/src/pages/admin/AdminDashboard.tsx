@@ -69,9 +69,9 @@ export const AdminDashboard: React.FC = () => {
     }, 800);
   };
 
-  const handleCreateProduct = (e: React.FormEvent) => {
+  const handleCreateProduct = async (e: React.FormEvent) => {
     e.preventDefault();
-    addProduct({
+    await addProduct({
       name: newProductName,
       category: newProductCategory,
       price: newProductPrice,

@@ -38,25 +38,25 @@ export const StaffDashboard: React.FC = () => {
     setTimeout(() => setNotification(null), 3500);
   };
 
-  const handleApprove = (orderId: string) => {
-    updateOrderStatus(orderId, 'PROCESSING');
+  const handleApprove = async (orderId: string) => {
+    await updateOrderStatus(orderId, 'PROCESSING');
     showToast(`Đã duyệt đơn #${orderId}! Chuyển sang trạng thái Đóng gói & Xử lý.`);
   };
 
-  const handleShip = (orderId: string) => {
-    updateOrderStatus(orderId, 'SHIPPED');
+  const handleShip = async (orderId: string) => {
+    await updateOrderStatus(orderId, 'SHIPPED');
     showToast(`Đã bàn giao đơn #${orderId} cho đơn vị vận chuyển (GHTK Express)!`);
   };
 
-  const handleDeliver = (orderId: string) => {
-    updateOrderStatus(orderId, 'DELIVERED');
+  const handleDeliver = async (orderId: string) => {
+    await updateOrderStatus(orderId, 'DELIVERED');
     showToast(`Đơn #${orderId} đã được xác nhận giao thành công!`);
   };
 
-  const handleConfirmRestock = (e: React.FormEvent) => {
+  const handleConfirmRestock = async (e: React.FormEvent) => {
     e.preventDefault();
     if (restockingProduct && restockQty > 0) {
-      restockProduct(restockingProduct.id, restockQty);
+      await restockProduct(restockingProduct.id, restockQty);
       showToast(`Đã nhập thêm ${restockQty} sản phẩm vào kho cho "${restockingProduct.name}"!`);
       setRestockingProduct(null);
       setRestockQty(20);
