@@ -23,7 +23,7 @@ import { getProductImage, handleImageError } from '../../utils/imageUtils';
 
 export const StaffDashboard: React.FC = () => {
   const { user } = useAuth();
-  const { orders, products, updateOrderStatus, restockProduct } = useStore();
+  const { orders, products, updateOrderStatus, restockProduct, confirmPayment } = useStore();
   const [activeTab, setActiveTab] = useState<'ALL' | 'PENDING' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED'>('PENDING');
   const [searchQuery, setSearchQuery] = useState('');
   const [notification, setNotification] = useState<string | null>(null);
@@ -85,6 +85,18 @@ export const StaffDashboard: React.FC = () => {
     if (window.confirm(`Xác nhận hủy đơn hàng #${orderId}? (${reason})`)) {
       await updateOrderStatus(orderId, 'CANCELLED');
       showToast(`Đã hủy đơn hàng #${orderId}. Số lượng tồn kho đã được hoàn trả lại.`);
+    }
+  };
+
+  const handleConfirmPaid = async (order: Order) => {
+    const orderNumericId = order.numericId || (typeof order.id === 'string' && order.id.startsWith('ORD-2026-') ? order.id.replace('ORD-2026-', '') : order.id);
+    if (window.confirm(`Xác nhận tài khoản BIDV 8893884656 đã nhận đủ ${order.total.toLocaleString('vi-VN')} ₫ cho đơn #${order.id}?`)) {
+      await confirmPayment(orderNumericId, {
+        paymentMethod: 'BANK_TRANSFER',
+        transactionCode: `BIDV-${Date.now().toString().slice(-6)}`,
+        bankName: 'BIDV'
+      });
+      showToast(`Đã xác nhận thanh toán thành công cho đơn #${order.id}!`);
     }
   };
 
@@ -395,12 +407,30 @@ export const StaffDashboard: React.FC = () => {
                       )}
 
                       {order.status === 'PROCESSING' && (
-                        <button
-                          onClick={() => handleOpenShipModal(order)}
-                          className="inline-flex items-center gap-1.5 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold shadow-sm transition"
-                        >
-                          <Send className="w-3.5 h-3.5" /> Bàn giao ĐVVC
-                        </button>
+                        <div className="flex flex-wrap items-center gap-1.5 justify-end">
+                          {!order.isPaid && order.paymentMethod !== 'COD' && (
+                            <button
+                              onClick={() => handleConfirmPaid(order)}
+                              className="inline-flex items-center gap-1 px-2.5 py-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 rounded-lg text-xs font-semibold transition cursor-pointer"
+                              title="Xác nhận tài khoản BIDV đã nhận được tiền"
+                            >
+                              <CheckCircle className="w-3.5 h-3.5 text-emerald-600" /> Đã nhận tiền BIDV
+                            </button>
+                          )}
+                          <button
+                            onClick={() => handleOpenShipModal(order)}
+                            className="inline-flex items-center gap-1.5 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold shadow-sm transition cursor-pointer"
+                          >
+                            <Send className="w-3.5 h-3.5" /> Bàn giao ĐVVC
+                          </button>
+                          <button
+                            onClick={() => handleCancelOrder(order.id, 'Hủy đơn đang đóng gói (Khách chưa chuyển tiền hoặc yêu cầu hủy)')}
+                            className="inline-flex items-center gap-1 px-2.5 py-2 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg text-xs font-medium transition cursor-pointer"
+                            title="Hủy đơn hàng và hoàn lại tồn kho"
+                          >
+                            <X className="w-3.5 h-3.5" /> Hủy đơn
+                          </button>
+                        </div>
                       )}
 
                       {order.status === 'SHIPPED' && (

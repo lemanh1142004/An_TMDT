@@ -166,10 +166,10 @@ public class OrderServiceImpl implements OrderService {
             if (callerEmail == null || !callerEmail.equalsIgnoreCase(order.getCustomerEmail())) {
                 throw new AppException("Bạn không có quyền cập nhật đơn hàng này.", HttpStatus.FORBIDDEN);
             }
-            // Customer can only cancel PENDING order or confirm delivery for SHIPPED order
+            // Customer can only cancel order if not yet shipped, or confirm delivery for SHIPPED order
             if (request.getStatus() == OrderStatus.CANCELLED) {
-                if (order.getStatus() != OrderStatus.PENDING) {
-                    throw new AppException("Chỉ có thể hủy đơn hàng khi đơn đang ở trạng thái Chờ duyệt.", HttpStatus.BAD_REQUEST);
+                if (order.getStatus() != OrderStatus.PENDING && order.getStatus() != OrderStatus.PROCESSING) {
+                    throw new AppException("Chỉ có thể hủy đơn hàng khi đơn chưa được bàn giao vận chuyển.", HttpStatus.BAD_REQUEST);
                 }
             } else if (request.getStatus() == OrderStatus.DELIVERED) {
                 if (order.getStatus() != OrderStatus.SHIPPED) {

@@ -311,10 +311,11 @@ export const CustomerDashboard: React.FC = () => {
                     </>
                   )}
 
-                  {order.status === 'PENDING' && (
+                  {(order.status === 'PENDING' || order.status === 'PROCESSING') && (
                     <button
                       onClick={() => handleCancelOrder(order.id)}
-                      className="px-3.5 py-2 rounded-xl border border-red-200 text-red-600 hover:bg-red-50 text-xs font-semibold transition flex items-center gap-1.5"
+                      className="px-3.5 py-2 rounded-xl border border-red-200 text-red-600 hover:bg-red-50 text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer"
+                      title="Hủy đơn hàng này"
                     >
                       <X className="w-3.5 h-3.5" /> Hủy đơn hàng
                     </button>
