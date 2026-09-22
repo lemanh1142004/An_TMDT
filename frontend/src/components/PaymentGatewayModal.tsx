@@ -220,13 +220,19 @@ export const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
                   <span className="block font-bold text-slate-800 text-xs mb-2">Chi tiết sản phẩm đã mua:</span>
                   <div className="space-y-1.5 bg-white p-3 rounded-xl border border-slate-200/80">
                     {(paidOrder.items || []).map((it, idx) => (
-                      <div key={idx} className="flex justify-between items-center text-xs">
-                        <span className="text-slate-700 font-medium">
-                          • {it.name || 'Sản phẩm'} ({it.color || 'Tiêu chuẩn'}, {it.size || 'L'}) x<strong>{it.quantity || 1}</strong>
-                        </span>
-                        <span className="font-semibold text-slate-900">
-                          {((it.price || 0) * (it.quantity || 1)).toLocaleString('vi-VN')} ₫
-                        </span>
+                      <div key={idx} className="flex justify-between items-center gap-3 text-xs py-1 border-b border-slate-100 last:border-b-0">
+                        <div className="flex-1 min-w-0">
+                          <span className="text-slate-800 font-medium">• {it.name || 'Sản phẩm'}</span>
+                          <span className="text-slate-500 text-[11px] ml-1.5">({it.color || 'Tiêu chuẩn'}, Size {it.size || 'L'})</span>
+                        </div>
+                        <div className="flex items-center gap-3 flex-shrink-0">
+                          <span className="px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-100 font-mono font-bold text-[11px]">
+                            x{it.quantity || 1}
+                          </span>
+                          <span className="font-semibold text-slate-900 min-w-[90px] text-right font-mono">
+                            {((it.price || 0) * (it.quantity || 1)).toLocaleString('vi-VN')} ₫
+                          </span>
+                        </div>
                       </div>
                     ))}
                   </div>

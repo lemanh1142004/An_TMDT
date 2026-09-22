@@ -329,16 +329,33 @@ export const StaffDashboard: React.FC = () => {
                     )}
 
                     {/* Order items */}
-                    <div className="mt-2 bg-slate-50 p-2.5 rounded-lg border border-slate-100">
-                      <div className="text-xs font-semibold text-slate-600 mb-1">Mặt hàng ({order.items.length}):</div>
-                      <ul className="text-xs text-slate-700 space-y-0.5">
+                    <div className="mt-2 bg-slate-50 p-2.5 rounded-lg border border-slate-200/70">
+                      <div className="text-xs font-semibold text-slate-600 mb-1.5 flex items-center justify-between">
+                        <span>Mặt hàng ({order.items.length}):</span>
+                        <span className="text-[11px] text-slate-400 font-normal">Đơn giá x Số lượng</span>
+                      </div>
+                      <div className="space-y-1.5">
                         {order.items.map((item, i) => (
-                          <li key={i} className="flex justify-between">
-                            <span>• {item.name} ({item.color}, Size {item.size}) x<strong>{item.quantity}</strong></span>
-                            <span className="font-medium text-slate-800">{(item.price * item.quantity).toLocaleString('vi-VN')} ₫</span>
-                          </li>
+                          <div key={i} className="flex items-center justify-between gap-3 text-xs bg-white p-2 rounded-lg border border-slate-100 shadow-2xs">
+                            <div className="flex-1 min-w-0">
+                              <div className="font-semibold text-slate-800 truncate">• {item.name}</div>
+                              <div className="text-[11px] text-slate-500 flex items-center gap-1.5 mt-0.5">
+                                <span>Phân loại: <strong className="text-slate-700">{item.color}</strong></span>
+                                <span>•</span>
+                                <span>Size: <strong className="text-slate-700">{item.size}</strong></span>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-3 flex-shrink-0">
+                              <span className="px-2 py-0.5 rounded-md bg-indigo-50 border border-indigo-100 text-indigo-700 font-mono font-bold text-xs">
+                                x{item.quantity}
+                              </span>
+                              <span className="font-bold text-slate-900 min-w-[95px] text-right font-mono text-xs">
+                                {(item.price * item.quantity).toLocaleString('vi-VN')} ₫
+                              </span>
+                            </div>
+                          </div>
                         ))}
-                      </ul>
+                      </div>
                     </div>
                   </div>
 
