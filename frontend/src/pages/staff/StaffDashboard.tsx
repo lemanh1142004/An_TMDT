@@ -296,9 +296,14 @@ export const StaffDashboard: React.FC = () => {
                       <span className={`text-[11px] font-semibold px-2 py-0.5 rounded ${
                         order.isPaid ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
                       }`}>
-                        {order.isPaid ? 'Đã thanh toán online' : 'Thu tiền tận nơi (COD)'}
+                        {order.isPaid
+                          ? (order.transactionCode ? `Đã thanh toán (${order.transactionCode})` : 'Đã thanh toán online')
+                          : (order.paymentMethod === 'COD' ? 'Thu tiền tận nơi (COD)' : 'Chờ thanh toán online')}
                       </span>
                       <span className="text-xs font-mono text-slate-500">[{order.paymentMethod}]</span>
+                      {order.paidAt && (
+                        <span className="text-[10px] text-emerald-700 font-mono">({order.paidAt})</span>
+                      )}
                     </div>
 
                     <div className="text-sm font-semibold text-slate-800 flex items-center gap-2">

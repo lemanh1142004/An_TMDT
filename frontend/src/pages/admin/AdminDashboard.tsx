@@ -299,7 +299,18 @@ export const AdminDashboard: React.FC = () => {
                       <td className="px-5 py-3.5 font-semibold text-slate-900">
                         {order.total.toLocaleString('vi-VN')} ₫
                       </td>
-                      <td className="px-5 py-3.5 text-xs font-mono">{order.paymentMethod}</td>
+                      <td className="px-5 py-3.5 text-xs">
+                        <div className="font-mono font-medium text-slate-800">{order.paymentMethod}</div>
+                        {order.isPaid ? (
+                          <div className="text-[10px] text-emerald-600 font-semibold mt-0.5">
+                            ✓ Đã thanh toán {order.transactionCode ? `(${order.transactionCode})` : ''}
+                          </div>
+                        ) : (
+                          <div className="text-[10px] text-amber-600 font-semibold mt-0.5">
+                            {order.paymentMethod === 'COD' ? 'Thu COD khi giao' : 'Chờ thanh toán'}
+                          </div>
+                        )}
+                      </td>
                       <td className="px-5 py-3.5">{getStatusBadge(order.status)}</td>
                       <td className="px-5 py-3.5 text-xs text-slate-500">{order.createdAt}</td>
                     </tr>

@@ -1,5 +1,6 @@
 package com.fashionstore.backend.modules.order.controller;
 
+import com.fashionstore.backend.modules.order.dto.ConfirmPaymentRequest;
 import com.fashionstore.backend.modules.order.dto.CreateOrderRequest;
 import com.fashionstore.backend.modules.order.dto.OrderDto;
 import com.fashionstore.backend.modules.order.dto.UpdateOrderStatusRequest;
@@ -28,6 +29,15 @@ public class OrderController {
     ) {
         String email = principal != null ? principal.getName() : request.getCustomerEmail();
         return ResponseEntity.status(HttpStatus.CREATED).body(orderService.createOrder(email, request));
+    }
+
+    @PostMapping("/{id}/pay")
+    public ResponseEntity<OrderDto> confirmPayment(
+            @PathVariable Long id,
+            @RequestBody(required = false) ConfirmPaymentRequest request,
+            Principal principal
+    ) {
+        return ResponseEntity.ok(orderService.confirmPayment(id, request, principal));
     }
 
     @GetMapping("/my-orders")

@@ -28,6 +28,8 @@ public class OrderDto {
     private BigDecimal total;
     private PaymentMethod paymentMethod;
     private Boolean isPaid;
+    private String transactionCode;
+    private LocalDateTime paidAt;
     private OrderStatus status;
     private String carrier;
     private String trackingCode;

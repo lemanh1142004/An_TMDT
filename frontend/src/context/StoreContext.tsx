@@ -53,13 +53,15 @@ export interface Order {
   discount: number;
   shippingFee: number;
   total: number;
-  paymentMethod: 'COD' | 'VNPAY' | 'Chuyển khoản';
+  paymentMethod: 'COD' | 'VNPAY' | 'Chuyển khoản' | 'Thẻ quốc tế' | 'Ví MoMo' | string;
   isPaid: boolean;
   status: 'PENDING' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED';
   createdAt: string;
   carrier: string;
   trackingCode: string;
   note?: string;
+  transactionCode?: string;
+  paidAt?: string;
 }
 
 export interface UserAccount {
@@ -92,6 +94,14 @@ interface StoreContextType {
   clearCart: () => void;
   // Order operations
   createOrder: (orderData: any) => Promise<Order>;
+  confirmPayment: (
+    orderId: string | number,
+    payload?: {
+      transactionCode?: string;
+      paymentMethod?: 'COD' | 'VNPAY' | 'BANK_TRANSFER' | 'CREDIT_CARD' | 'MOMO';
+      bankName?: string;
+    }
+  ) => Promise<Order>;
   updateOrderStatus: (orderId: string, status: Order['status'], carrier?: string, trackingCode?: string) => Promise<void>;
   // Inventory & Product operations
   restockProduct: (productId: number, addedQty: number) => Promise<void>;
@@ -293,6 +303,30 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
+  const confirmPayment = async (
+    orderId: string | number,
+    payload?: {
+      transactionCode?: string;
+      paymentMethod?: 'COD' | 'VNPAY' | 'BANK_TRANSFER' | 'CREDIT_CARD' | 'MOMO';
+      bankName?: string;
+    }
+  ): Promise<Order> => {
+    try {
+      const foundOrder = orders.find((o) => o.id === orderId || String(o.numericId) === String(orderId));
+      const targetId = foundOrder?.numericId || (typeof orderId === 'string' && orderId.startsWith('ORD-2026-') ? orderId.replace('ORD-2026-', '') : orderId);
+
+      const updated = await orderService.confirmPayment(targetId, payload);
+      setOrders((prev) =>
+        prev.map((o) => (o.id === updated.id || o.numericId === updated.numericId ? updated : o))
+      );
+      fetchOrders();
+      return updated;
+    } catch (err) {
+      console.error('Failed to confirm payment on backend:', err);
+      throw err;
+    }
+  };
+
   const updateOrderStatus = async (orderId: string, status: Order['status'], carrier?: string, trackingCode?: string) => {
     try {
       const foundOrder = orders.find((o) => o.id === orderId || String(o.numericId) === orderId);
@@ -395,6 +429,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         removeFromCart,
         clearCart,
         createOrder,
+        confirmPayment,
         updateOrderStatus,
         restockProduct,
         addProduct,

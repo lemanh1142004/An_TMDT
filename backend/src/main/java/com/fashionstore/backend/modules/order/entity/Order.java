@@ -65,6 +65,11 @@ public class Order {
     @Builder.Default
     private Boolean isPaid = false;
 
+    @Column(length = 100)
+    private String transactionCode;
+
+    private LocalDateTime paidAt;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
     private OrderStatus status;

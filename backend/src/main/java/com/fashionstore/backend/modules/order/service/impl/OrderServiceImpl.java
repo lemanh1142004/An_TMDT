@@ -1,6 +1,7 @@
 package com.fashionstore.backend.modules.order.service.impl;
 
 import com.fashionstore.backend.common.exception.AppException;
+import com.fashionstore.backend.modules.order.dto.ConfirmPaymentRequest;
 import com.fashionstore.backend.modules.order.dto.CreateOrderRequest;
 import com.fashionstore.backend.modules.order.dto.OrderDto;
 import com.fashionstore.backend.modules.order.dto.OrderItemDto;
@@ -55,7 +56,7 @@ public class OrderServiceImpl implements OrderService {
                 .phoneNumber(request.getPhone())
                 .shippingAddress(request.getAddress())
                 .paymentMethod(request.getPaymentMethod())
-                .isPaid(request.getPaymentMethod() == PaymentMethod.VNPAY)
+                .isPaid(false)
                 .status(OrderStatus.PENDING)
                 .carrier("GHTK Express")
                 .trackingCode(trackingCode)
@@ -210,6 +211,52 @@ public class OrderServiceImpl implements OrderService {
         return mapToDto(saved);
     }
 
+    @Override
+    @Transactional
+    public OrderDto confirmPayment(Long id, ConfirmPaymentRequest request, java.security.Principal principal) {
+        Order order = orderRepository.findById(id)
+                .orElseThrow(() -> new AppException("Đơn hàng ID=" + id + " không tồn tại", HttpStatus.NOT_FOUND));
+
+        String callerEmail = principal != null ? principal.getName() : (order.getCustomerEmail() != null ? order.getCustomerEmail() : "guest");
+
+        // Verify authorization if principal is present
+        if (principal != null) {
+            User caller = userRepository.findByEmail(callerEmail).orElse(null);
+            boolean isStaffOrAdmin = caller != null && caller.getRoles().stream()
+                    .anyMatch(r -> "ROLE_ADMIN".equals(r.getName()) || "ROLE_STAFF".equals(r.getName()));
+
+            if (!isStaffOrAdmin && !order.getCustomerEmail().equalsIgnoreCase(callerEmail)) {
+                throw new AppException("Bạn không có quyền thanh toán cho đơn hàng của người khác", HttpStatus.FORBIDDEN);
+            }
+        }
+
+        if (order.getStatus() == OrderStatus.CANCELLED) {
+            throw new AppException("Không thể thanh toán cho đơn hàng đã bị hủy", HttpStatus.BAD_REQUEST);
+        }
+
+        order.setIsPaid(true);
+        order.setPaidAt(java.time.LocalDateTime.now());
+
+        if (request != null && request.getPaymentMethod() != null) {
+            order.setPaymentMethod(request.getPaymentMethod());
+        }
+
+        String txnCode = (request != null && request.getTransactionCode() != null && !request.getTransactionCode().isBlank())
+                ? request.getTransactionCode()
+                : ("TXN-" + System.currentTimeMillis() + "-" + (int)(Math.random() * 9000 + 1000));
+        order.setTransactionCode(txnCode);
+
+        // Auto move PENDING to PROCESSING upon confirmed online payment
+        if (order.getStatus() == OrderStatus.PENDING) {
+            order.setStatus(OrderStatus.PROCESSING);
+        }
+
+        Order saved = orderRepository.save(order);
+        log.info("Payment confirmed successfully for order ID={} ({}), txnCode={}, paidAt={}, newStatus={}",
+                saved.getId(), saved.getOrderCode(), saved.getTransactionCode(), saved.getPaidAt(), saved.getStatus());
+        return mapToDto(saved);
+    }
+
     private OrderDto mapToDto(Order o) {
         List<OrderItemDto> itemDtos = o.getItems().stream()
                 .map(item -> OrderItemDto.builder()
@@ -236,6 +283,8 @@ public class OrderServiceImpl implements OrderService {
                 .total(o.getTotalAmount())
                 .paymentMethod(o.getPaymentMethod())
                 .isPaid(o.getIsPaid())
+                .transactionCode(o.getTransactionCode())
+                .paidAt(o.getPaidAt())
                 .status(o.getStatus())
                 .carrier(o.getCarrier())
                 .trackingCode(o.getTrackingCode())

@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { X, CheckCircle, Tag, Truck, CreditCard, Banknote, ShieldCheck, Package } from 'lucide-react';
+import { X, CheckCircle, Tag, Truck, CreditCard, Banknote, Package, Wallet, QrCode, Lock } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import type { Order, CartItem } from '../context/StoreContext';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { PaymentGatewayModal } from './PaymentGatewayModal';
 
 interface CheckoutModalProps {
   isOpen?: boolean;
@@ -29,7 +30,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const [customerName, setCustomerName] = useState(user?.fullName || 'Trần Thị Khách Hàng');
   const [phone, setPhone] = useState(user?.phoneNumber || '0903 456 789');
   const [address, setAddress] = useState('Số 45, Đường Lê Lợi, P. Bến Nghé, Quận 1, TP. HCM');
-  const [paymentMethod, setPaymentMethod] = useState<'COD' | 'VNPAY' | 'Chuyển khoản'>('COD');
+  const [paymentMethod, setPaymentMethod] = useState<'COD' | 'VNPAY' | 'Chuyển khoản' | 'Thẻ quốc tế' | 'Ví MoMo'>('COD');
+  const [isGatewayOpen, setIsGatewayOpen] = useState(false);
   const [voucherCode, setVoucherCode] = useState('');
   const [appliedVoucher, setAppliedVoucher] = useState<string | null>(null);
   const [voucherError, setVoucherError] = useState<string | null>(null);
@@ -86,6 +88,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         })),
       });
       setCreatedOrder(order);
+      if (paymentMethod !== 'COD') {
+        setIsGatewayOpen(true);
+      }
     } catch (err: any) {
       setSubmitError(err.response?.data?.message || 'Không thể tạo đơn hàng. Vui lòng thử lại.');
     } finally {
@@ -109,11 +114,15 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         {/* Success View */}
         {createdOrder ? (
           <div className="text-center py-6 space-y-4">
-            <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto">
+            <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto ${
+              createdOrder.isPaid ? 'bg-emerald-100 text-emerald-600' : 'bg-indigo-100 text-indigo-600'
+            }`}>
               <CheckCircle className="w-10 h-10" />
             </div>
             <div>
-              <h3 className="text-xl font-bold text-slate-900">Đặt Hàng Thành Công!</h3>
+              <h3 className="text-xl font-bold text-slate-900">
+                {createdOrder.isPaid ? 'Đặt Hàng & Thanh Toán Thành Công!' : 'Đặt Hàng Thành Công!'}
+              </h3>
               <p className="text-xs text-slate-500 mt-1">
                 Mã đơn hàng: <strong className="font-mono text-indigo-600">{createdOrder.id}</strong>
               </p>
@@ -139,6 +148,48 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 </span>
               </div>
             </div>
+
+            {/* Payment Status banner */}
+            {createdOrder.isPaid ? (
+              <div className="p-3.5 bg-emerald-50 rounded-xl text-xs text-emerald-900 border border-emerald-200 flex items-center justify-between text-left">
+                <div className="flex items-center gap-2">
+                  <CheckCircle className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                  <div>
+                    <strong>Đã thanh toán online thành công</strong>
+                    <div className="text-[11px] text-emerald-700 font-mono">Mã GD: {createdOrder.transactionCode}</div>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setIsGatewayOpen(true)}
+                  className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition shadow-xs whitespace-nowrap"
+                >
+                  Xem biên lai / hóa đơn
+                </button>
+              </div>
+            ) : createdOrder.paymentMethod !== 'COD' ? (
+              <div className="p-3.5 bg-amber-50 rounded-xl text-xs text-amber-900 border border-amber-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 text-left">
+                <div className="flex items-center gap-2">
+                  <CreditCard className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                  <div>
+                    <strong>Đơn hàng đang chờ thanh toán online</strong>
+                    <p className="text-[11px] text-amber-700">Bạn có thể hoàn tất thanh toán ngay để kho xuất hàng sớm.</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setIsGatewayOpen(true)}
+                  className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition shadow-sm whitespace-nowrap flex items-center gap-1.5"
+                >
+                  💳 Mở cổng thanh toán ngay
+                </button>
+              </div>
+            ) : (
+              <div className="p-3 bg-slate-50 rounded-lg text-[11px] text-slate-700 border border-slate-200 flex items-center gap-2 text-left">
+                <Truck className="w-4 h-4 text-slate-600 flex-shrink-0" />
+                <span>
+                  Phương thức <strong>COD Tiền mặt</strong>: Bạn sẽ thanh toán cho bưu tá khi nhận kiện hàng.
+                </span>
+              </div>
+            )}
 
             <div className="p-3 bg-amber-50 rounded-lg text-[11px] text-amber-800 border border-amber-200 flex items-center gap-2 text-left">
               <Truck className="w-4 h-4 text-amber-600 flex-shrink-0" />
@@ -253,44 +304,70 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               {/* Payment Methods */}
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-2">Phương thức thanh toán</label>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
                   <button
                     type="button"
                     onClick={() => setPaymentMethod('COD')}
-                    className={`p-3 rounded-xl border text-left transition flex flex-col justify-between ${
+                    className={`p-2.5 rounded-xl border text-left transition flex flex-col justify-between ${
                       paymentMethod === 'COD'
-                        ? 'border-indigo-600 bg-indigo-50/50 text-indigo-950 font-semibold'
+                        ? 'border-indigo-600 bg-indigo-50/50 text-indigo-950 font-semibold shadow-2xs'
                         : 'border-slate-200 hover:bg-slate-50 text-slate-600'
                     }`}
                   >
                     <Banknote className="w-4 h-4 mb-1 text-slate-700" />
-                    <span className="text-xs">COD Tiền mặt</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMethod('VNPAY')}
-                    className={`p-3 rounded-xl border text-left transition flex flex-col justify-between ${
-                      paymentMethod === 'VNPAY'
-                        ? 'border-indigo-600 bg-indigo-50/50 text-indigo-950 font-semibold'
-                        : 'border-slate-200 hover:bg-slate-50 text-slate-600'
-                    }`}
-                  >
-                    <CreditCard className="w-4 h-4 mb-1 text-blue-600" />
-                    <span className="text-xs">VNPAY QR</span>
+                    <span className="text-xs font-medium">COD Tiền mặt</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => setPaymentMethod('Chuyển khoản')}
-                    className={`p-3 rounded-xl border text-left transition flex flex-col justify-between ${
+                    className={`p-2.5 rounded-xl border text-left transition flex flex-col justify-between ${
                       paymentMethod === 'Chuyển khoản'
-                        ? 'border-indigo-600 bg-indigo-50/50 text-indigo-950 font-semibold'
+                        ? 'border-emerald-600 bg-emerald-50/50 text-emerald-950 font-semibold shadow-2xs'
                         : 'border-slate-200 hover:bg-slate-50 text-slate-600'
                     }`}
                   >
-                    <ShieldCheck className="w-4 h-4 mb-1 text-emerald-600" />
-                    <span className="text-xs">Chuyển khoản</span>
+                    <QrCode className="w-4 h-4 mb-1 text-emerald-600" />
+                    <span className="text-xs font-medium">VietQR 24/7</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod('VNPAY')}
+                    className={`p-2.5 rounded-xl border text-left transition flex flex-col justify-between ${
+                      paymentMethod === 'VNPAY'
+                        ? 'border-blue-600 bg-blue-50/50 text-blue-950 font-semibold shadow-2xs'
+                        : 'border-slate-200 hover:bg-slate-50 text-slate-600'
+                    }`}
+                  >
+                    <CreditCard className="w-4 h-4 mb-1 text-blue-600" />
+                    <span className="text-xs font-medium">VNPAY QR</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod('Thẻ quốc tế')}
+                    className={`p-2.5 rounded-xl border text-left transition flex flex-col justify-between ${
+                      paymentMethod === 'Thẻ quốc tế'
+                        ? 'border-indigo-600 bg-indigo-50/50 text-indigo-950 font-semibold shadow-2xs'
+                        : 'border-slate-200 hover:bg-slate-50 text-slate-600'
+                    }`}
+                  >
+                    <Lock className="w-4 h-4 mb-1 text-indigo-600" />
+                    <span className="text-xs font-medium">Visa / Master</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod('Ví MoMo')}
+                    className={`p-2.5 rounded-xl border text-left transition flex flex-col justify-between ${
+                      paymentMethod === 'Ví MoMo'
+                        ? 'border-pink-600 bg-pink-50/50 text-pink-950 font-semibold shadow-2xs'
+                        : 'border-slate-200 hover:bg-slate-50 text-slate-600'
+                    }`}
+                  >
+                    <Wallet className="w-4 h-4 mb-1 text-pink-600" />
+                    <span className="text-xs font-medium">Ví MoMo</span>
                   </button>
                 </div>
 
@@ -308,44 +385,59 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                     </div>
                   )}
 
-                  {paymentMethod === 'VNPAY' && (
-                    <div className="p-3.5 bg-blue-50/70 border border-blue-200 rounded-xl text-xs space-y-2 animate-fadeIn">
+                  {paymentMethod === 'Chuyển khoản' && (
+                    <div className="p-3 bg-emerald-50/70 border border-emerald-200 rounded-xl text-xs space-y-1 animate-fadeIn">
                       <div className="flex items-center justify-between">
-                        <strong className="text-blue-900 font-bold flex items-center gap-1.5">
-                          <CreditCard className="w-4 h-4 text-blue-600" /> Quét mã VNPAY-QR
+                        <strong className="text-emerald-900 font-bold flex items-center gap-1.5">
+                          <QrCode className="w-4 h-4 text-emerald-600" /> Chuyển khoản VietQR NAPAS 247
                         </strong>
-                        <span className="text-[10px] bg-blue-600 text-white px-2 py-0.5 rounded-full font-semibold">Tự động</span>
+                        <span className="text-[10px] bg-emerald-600 text-white px-2 py-0.5 rounded-full font-semibold">Tự động</span>
                       </div>
-                      <div className="flex items-center gap-3">
-                        <div className="bg-white p-1.5 rounded-lg border border-blue-200 shadow-2xs flex-shrink-0">
-                          <img
-                            src={`https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=VNPAY-FASHIONSTORE-TOTAL-${total}`}
-                            alt="VNPAY QR"
-                            className="w-20 h-20"
-                          />
-                        </div>
-                        <div className="text-[11px] text-blue-800 space-y-1">
-                          <p>Mở app Mobile Banking (VCB, Vietin, MB, Techcombank...) hoặc MoMo quét mã thanh toán <strong>{total.toLocaleString('vi-VN')} ₫</strong>.</p>
-                          <p className="text-slate-500">Đơn hàng được xác nhận tự động ngay sau khi quét.</p>
-                        </div>
-                      </div>
+                      <p className="text-[11px] text-emerald-800">
+                        Cổng thanh toán VietQR với mã QR động và số tiền chính xác sẽ mở ngay khi bạn bấm Xác nhận đặt hàng.
+                      </p>
                     </div>
                   )}
 
-                  {paymentMethod === 'Chuyển khoản' && (
-                    <div className="p-3.5 bg-emerald-50/70 border border-emerald-200 rounded-xl text-xs space-y-2 animate-fadeIn">
+                  {paymentMethod === 'VNPAY' && (
+                    <div className="p-3 bg-blue-50/70 border border-blue-200 rounded-xl text-xs space-y-1 animate-fadeIn">
                       <div className="flex items-center justify-between">
-                        <strong className="text-emerald-900 font-bold flex items-center gap-1.5">
-                          <ShieldCheck className="w-4 h-4 text-emerald-600" /> Chuyển khoản VietQR NAPAS 247
+                        <strong className="text-blue-900 font-bold flex items-center gap-1.5">
+                          <CreditCard className="w-4 h-4 text-blue-600" /> Cổng VNPAY-QR & Thẻ ATM Nội Địa
                         </strong>
-                        <span className="text-[10px] bg-emerald-600 text-white px-2 py-0.5 rounded-full font-semibold">Vietcombank</span>
+                        <span className="text-[10px] bg-blue-600 text-white px-2 py-0.5 rounded-full font-semibold">VNPAY</span>
                       </div>
-                      <div className="bg-white p-3 rounded-lg border border-emerald-100 space-y-1 font-mono text-[11px] text-slate-800">
-                        <div>Ngân hàng: <strong>Vietcombank (CN TP.HCM)</strong></div>
-                        <div>Số TK: <strong className="text-indigo-600 font-bold text-xs">1028 3948 2901</strong></div>
-                        <div>Chủ TK: <strong>CTY CP THOI TRANG FASHION STORE</strong></div>
-                        <div>Nội dung CK: <strong className="text-emerald-700">FS {phone.replace(/\s+/g, '')}</strong></div>
+                      <p className="text-[11px] text-blue-800">
+                        Hỗ trợ quét mã qua ứng dụng ngân hàng hoặc thanh toán bằng thẻ ATM Napas kết nối hơn 40 ngân hàng Việt Nam.
+                      </p>
+                    </div>
+                  )}
+
+                  {paymentMethod === 'Thẻ quốc tế' && (
+                    <div className="p-3 bg-indigo-50/70 border border-indigo-200 rounded-xl text-xs space-y-1 animate-fadeIn">
+                      <div className="flex items-center justify-between">
+                        <strong className="text-indigo-900 font-bold flex items-center gap-1.5">
+                          <Lock className="w-4 h-4 text-indigo-600" /> Thẻ Quốc Tế (Visa / MasterCard / JCB)
+                        </strong>
+                        <span className="text-[10px] bg-indigo-600 text-white px-2 py-0.5 rounded-full font-semibold">3D Secure</span>
                       </div>
+                      <p className="text-[11px] text-indigo-800">
+                        Thanh toán trực tiếp bằng thẻ quốc tế với bảo mật chuẩn mã hóa SSL 256-bit và OTP bảo vệ tài khoản.
+                      </p>
+                    </div>
+                  )}
+
+                  {paymentMethod === 'Ví MoMo' && (
+                    <div className="p-3 bg-pink-50/70 border border-pink-200 rounded-xl text-xs space-y-1 animate-fadeIn">
+                      <div className="flex items-center justify-between">
+                        <strong className="text-pink-900 font-bold flex items-center gap-1.5">
+                          <Wallet className="w-4 h-4 text-pink-600" /> Thanh toán qua Ví Điện Tử MoMo
+                        </strong>
+                        <span className="text-[10px] bg-pink-600 text-white px-2 py-0.5 rounded-full font-semibold">MoMo Pay</span>
+                      </div>
+                      <p className="text-[11px] text-pink-800">
+                        Quét mã QR MoMo hoặc thanh toán 1 chạm qua ứng dụng MoMo chỉ trong vài giây.
+                      </p>
                     </div>
                   )}
                 </div>
@@ -434,6 +526,16 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
           </div>
         )}
       </div>
+
+      {/* Payment Gateway Modal */}
+      <PaymentGatewayModal
+        order={createdOrder}
+        isOpen={isGatewayOpen}
+        onClose={() => setIsGatewayOpen(false)}
+        onPaymentSuccess={(updated) => {
+          setCreatedOrder(updated);
+        }}
+      />
     </div>
   );
 };
