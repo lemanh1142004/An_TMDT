@@ -223,6 +223,7 @@ public class DataInitializer implements CommandLineRunner {
                                 .price(BigDecimal.valueOf(1450000))
                                 .originalPrice(BigDecimal.valueOf(1890000))
                                 .stock(8)
+                                .image("https://images.unsplash.com/photo-1539109136881-3be0616acf4b?w=600&auto=format&fit=crop&q=80")
                                 .tag("Cao cấp")
                                 .rating(5.0)
                                 .reviewsCount(32)
@@ -235,6 +236,7 @@ public class DataInitializer implements CommandLineRunner {
                                 .price(BigDecimal.valueOf(490000))
                                 .originalPrice(BigDecimal.valueOf(620000))
                                 .stock(22)
+                                .image("https://images.unsplash.com/photo-1583496661160-fb5886a0aaaa?w=600&auto=format&fit=crop&q=80")
                                 .tag("Bán chạy")
                                 .rating(4.8)
                                 .reviewsCount(67)
@@ -247,6 +249,7 @@ public class DataInitializer implements CommandLineRunner {
                                 .price(BigDecimal.valueOf(520000))
                                 .originalPrice(null)
                                 .stock(16)
+                                .image("https://images.unsplash.com/photo-1564257631407-4deb1f99d992?w=600&auto=format&fit=crop&q=80")
                                 .tag("New")
                                 .rating(4.7)
                                 .reviewsCount(29)
@@ -259,6 +262,7 @@ public class DataInitializer implements CommandLineRunner {
                                 .price(BigDecimal.valueOf(420000))
                                 .originalPrice(BigDecimal.valueOf(550000))
                                 .stock(35)
+                                .image("https://images.unsplash.com/photo-1581655353564-df123a1eb820?w=600&auto=format&fit=crop&q=80")
                                 .tag("Hot")
                                 .rating(4.9)
                                 .reviewsCount(118)
@@ -271,6 +275,7 @@ public class DataInitializer implements CommandLineRunner {
                                 .price(BigDecimal.valueOf(820000))
                                 .originalPrice(BigDecimal.valueOf(1100000))
                                 .stock(14)
+                                .image("https://images.unsplash.com/photo-1551028719-00167b16eac5?w=600&auto=format&fit=crop&q=80")
                                 .tag("Giảm 25%")
                                 .rating(4.8)
                                 .reviewsCount(52)
@@ -283,6 +288,7 @@ public class DataInitializer implements CommandLineRunner {
                                 .price(BigDecimal.valueOf(290000))
                                 .originalPrice(BigDecimal.valueOf(350000))
                                 .stock(50)
+                                .image("https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=600&auto=format&fit=crop&q=80")
                                 .tag("Basic")
                                 .rating(4.9)
                                 .reviewsCount(210)
@@ -295,6 +301,7 @@ public class DataInitializer implements CommandLineRunner {
                                 .price(BigDecimal.valueOf(380000))
                                 .originalPrice(BigDecimal.valueOf(480000))
                                 .stock(25)
+                                .image("https://images.unsplash.com/photo-1624222247344-550fb60583dc?w=600&auto=format&fit=crop&q=80")
                                 .tag("Bán chạy")
                                 .rating(4.8)
                                 .reviewsCount(88)
@@ -307,6 +314,7 @@ public class DataInitializer implements CommandLineRunner {
                                 .price(BigDecimal.valueOf(290000))
                                 .originalPrice(null)
                                 .stock(19)
+                                .image("https://images.unsplash.com/photo-1601924994987-69e26d50dc26?w=600&auto=format&fit=crop&q=80")
                                 .tag("New")
                                 .rating(4.9)
                                 .reviewsCount(41)
@@ -319,6 +327,7 @@ public class DataInitializer implements CommandLineRunner {
                                 .price(BigDecimal.valueOf(250000))
                                 .originalPrice(BigDecimal.valueOf(320000))
                                 .stock(30)
+                                .image("https://images.unsplash.com/photo-1534215754734-18e55d13e346?w=600&auto=format&fit=crop&q=80")
                                 .tag("Trending")
                                 .rating(4.7)
                                 .reviewsCount(35)
@@ -331,6 +340,7 @@ public class DataInitializer implements CommandLineRunner {
                                 .price(BigDecimal.valueOf(580000))
                                 .originalPrice(BigDecimal.valueOf(750000))
                                 .stock(40)
+                                .image("https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=600&auto=format&fit=crop&q=80")
                                 .tag("Hot Item")
                                 .rating(4.9)
                                 .reviewsCount(160)
@@ -343,6 +353,7 @@ public class DataInitializer implements CommandLineRunner {
                                 .price(BigDecimal.valueOf(1150000))
                                 .originalPrice(BigDecimal.valueOf(1490000))
                                 .stock(12)
+                                .image("https://images.unsplash.com/photo-1533867617858-e7b97e060509?w=600&auto=format&fit=crop&q=80")
                                 .tag("Best Choice")
                                 .rating(5.0)
                                 .reviewsCount(74)
@@ -355,6 +366,7 @@ public class DataInitializer implements CommandLineRunner {
                                 .price(BigDecimal.valueOf(320000))
                                 .originalPrice(BigDecimal.valueOf(450000))
                                 .stock(28)
+                                .image("https://images.unsplash.com/photo-1511499767150-a48a237f0083?w=600&auto=format&fit=crop&q=80")
                                 .tag("Phụ kiện")
                                 .rating(4.8)
                                 .reviewsCount(63)
@@ -367,6 +379,7 @@ public class DataInitializer implements CommandLineRunner {
                                 .price(BigDecimal.valueOf(620000))
                                 .originalPrice(BigDecimal.valueOf(780000))
                                 .stock(20)
+                                .image("https://images.unsplash.com/photo-1541099649105-f69ad21f3246?w=600&auto=format&fit=crop&q=80")
                                 .tag("Trending")
                                 .rating(4.8)
                                 .reviewsCount(95)
@@ -377,6 +390,16 @@ public class DataInitializer implements CommandLineRunner {
                 log.info("Expanded product catalog to 20 diverse fashion items successfully.");
             }
         }
+
+        // Self-healing: Repair any existing products with null or blank image
+        productRepository.findAll().forEach(p -> {
+            if (p.getImage() == null || p.getImage().isBlank()) {
+                String fallback = "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=600&auto=format&fit=crop&q=80";
+                p.setImage(fallback);
+                productRepository.save(p);
+                log.info("Repaired missing image for product ID: {}", p.getId());
+            }
+        });
     }
 
     private void seedOrdersIfEmpty(User customerUser) {

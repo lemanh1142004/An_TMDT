@@ -19,6 +19,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { useStore } from '../../context/StoreContext';
 import type { Order, Product } from '../../context/StoreContext';
+import { getProductImage, handleImageError } from '../../utils/imageUtils';
 
 export const StaffDashboard: React.FC = () => {
   const { user } = useAuth();
@@ -172,7 +173,12 @@ export const StaffDashboard: React.FC = () => {
           {lowStockProducts.map((p) => (
             <div key={p.id} className="bg-white p-3.5 rounded-xl border border-amber-200/80 shadow-2xs flex items-center justify-between gap-3">
               <div className="flex items-center gap-2.5 min-w-0">
-                <img src={p.image} alt={p.name} className="w-10 h-10 object-cover rounded-lg bg-slate-100 flex-shrink-0" />
+                <img 
+                  src={getProductImage(p.image)} 
+                  alt={p.name} 
+                  onError={handleImageError}
+                  className="w-10 h-10 object-cover rounded-lg bg-slate-100 flex-shrink-0" 
+                />
                 <div className="min-w-0">
                   <h5 className="text-xs font-bold text-slate-800 truncate">{p.name}</h5>
                   <p className="text-[11px] text-slate-500">
@@ -437,7 +443,12 @@ export const StaffDashboard: React.FC = () => {
             </div>
 
             <div className="flex gap-3 items-center bg-slate-50 p-3 rounded-xl">
-              <img src={restockingProduct.image} alt={restockingProduct.name} className="w-14 h-14 object-cover rounded-lg" />
+              <img 
+                src={getProductImage(restockingProduct.image)} 
+                alt={restockingProduct.name} 
+                onError={handleImageError}
+                className="w-14 h-14 object-cover rounded-lg" 
+              />
               <div>
                 <h4 className="text-xs font-bold text-slate-900">{restockingProduct.name}</h4>
                 <p className="text-[11px] text-slate-500">Tồn kho hiện tại: <strong className="text-red-600">{restockingProduct.stock}</strong> chiếc</p>

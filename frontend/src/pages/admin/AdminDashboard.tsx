@@ -26,6 +26,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { useStore } from '../../context/StoreContext';
 import type { UserAccount } from '../../context/StoreContext';
+import { getProductImage, handleImageError } from '../../utils/imageUtils';
 
 export const AdminDashboard: React.FC = () => {
   const { user } = useAuth();
@@ -343,7 +344,12 @@ export const AdminDashboard: React.FC = () => {
                 {products.map((p) => (
                   <tr key={p.id} className="hover:bg-slate-50/70 transition">
                     <td className="px-5 py-3">
-                      <img src={p.image} alt={p.name} className="w-10 h-10 object-cover rounded-lg bg-slate-100" />
+                      <img 
+                        src={getProductImage(p.image)} 
+                        alt={p.name} 
+                        onError={handleImageError}
+                        className="w-10 h-10 object-cover rounded-lg bg-slate-100" 
+                      />
                     </td>
                     <td className="px-5 py-3.5 font-medium text-slate-900">{p.name}</td>
                     <td className="px-5 py-3.5 text-xs text-slate-500">{p.category}</td>

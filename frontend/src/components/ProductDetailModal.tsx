@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, Star, ShoppingBag, Zap, ShieldCheck, Truck, RefreshCw, Check } from 'lucide-react';
 import type { Product } from '../context/StoreContext';
 import { useStore } from '../context/StoreContext';
+import { getProductImage, handleImageError } from '../utils/imageUtils';
 
 interface ProductDetailModalProps {
   product: Product | null;
@@ -73,8 +74,9 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
         {/* Left: Product Media Gallery */}
         <div className="md:w-1/2 relative bg-slate-100 min-h-[340px] md:min-h-[480px]">
           <img
-            src={product.image}
+            src={getProductImage(product.image)}
             alt={product.name}
+            onError={handleImageError}
             className="w-full h-full object-cover"
           />
           {product.tag && (

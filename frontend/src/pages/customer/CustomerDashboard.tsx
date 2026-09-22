@@ -19,6 +19,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useStore } from '../../context/StoreContext';
 import type { Order } from '../../context/StoreContext';
 import { Link } from 'react-router-dom';
+import { getProductImage, handleImageError } from '../../utils/imageUtils';
 
 const mockVouchers = [
   { code: 'FREESHIP50K', title: 'Miễn phí giao hàng toàn quốc', minOrder: 'Đơn từ 300.000 ₫', expiry: '30/09/2026' },
@@ -328,8 +329,9 @@ export const CustomerDashboard: React.FC = () => {
             <div key={item.id} className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden group">
               <div className="aspect-square bg-slate-100 overflow-hidden relative">
                 <img
-                  src={item.image}
+                  src={getProductImage(item.image)}
                   alt={item.name}
+                  onError={handleImageError}
                   className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
                 />
                 <span className="absolute top-2 left-2 bg-slate-900 text-white text-[10px] font-semibold px-2 py-0.5 rounded">

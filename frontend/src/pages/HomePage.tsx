@@ -29,6 +29,7 @@ import { useStore } from '../context/StoreContext';
 import type { Product } from '../context/StoreContext';
 import { ProductDetailModal } from '../components/ProductDetailModal';
 import { CheckoutModal } from '../components/CheckoutModal';
+import { getProductImage, handleImageError } from '../utils/imageUtils';
 
 // Fallback images for dynamic categories if not provided
 const categoryImages: Record<string, { image: string; subtitle: string }> = {
@@ -165,6 +166,7 @@ export const HomePage: React.FC = () => {
           <img
             src="https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=1600&auto=format&fit=crop&q=80"
             alt="Fashion Hero Banner"
+            onError={handleImageError}
             className="w-full h-full object-cover object-center"
           />
         </div>
@@ -275,6 +277,7 @@ export const HomePage: React.FC = () => {
                 <img
                   src={meta.image}
                   alt={cat.name}
+                  onError={handleImageError}
                   className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-slate-950/30 to-transparent" />
@@ -412,8 +415,10 @@ export const HomePage: React.FC = () => {
                   onClick={() => handleOpenDetail(p)}
                 >
                   <img
-                    src={p.image}
+                    src={getProductImage(p.image)}
                     alt={p.name}
+                    loading="lazy"
+                    onError={handleImageError}
                     className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
                   />
                   {p.tag && (
