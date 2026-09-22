@@ -34,14 +34,23 @@ public class DataInitializer implements CommandLineRunner {
         Role adminRole = seedRole(RoleType.ROLE_ADMIN, "Quản trị viên hệ thống");
         Role staffRole = seedRole(RoleType.ROLE_STAFF, "Nhân viên vận hành & quản lý đơn");
 
-        // 2. Seed Default Admin
+        // 2. Seed Default Admin (Strictly ROLE_ADMIN only)
         seedUserIfNotExists(
                 "admin@fashionstore.com",
                 "AdminPassword123!",
                 "Fashion Store Administrator",
                 "0901234567",
-                Set.of(adminRole, customerRole)
+                Set.of(adminRole)
         );
+
+        // Ensure existing admin account only has ROLE_ADMIN (strictly isolated)
+        userRepository.findByEmail("admin@fashionstore.com").ifPresent(adminUser -> {
+            if (adminUser.getRoles().size() > 1 || !adminUser.getRoles().contains(adminRole)) {
+                adminUser.setRoles(new HashSet<>(Set.of(adminRole)));
+                userRepository.save(adminUser);
+                log.info("Synchronized admin account roles: [ROLE_ADMIN]");
+            }
+        });
 
         // 3. Seed Default Staff
         seedUserIfNotExists(

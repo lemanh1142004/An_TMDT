@@ -14,45 +14,51 @@ import {
   Clock, 
   AlertTriangle, 
   Search, 
-  Filter, 
-  Download, 
-  PlusCircle,
-  Eye
+  PlusCircle, 
+  Eye, 
+  UserCheck, 
+  UserX, 
+  Shield, 
+  X,
+  PackageCheck,
+  EyeOff
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-
-interface OrderItem {
-  id: string;
-  customer: string;
-  email: string;
-  total: number;
-  status: 'COMPLETED' | 'PROCESSING' | 'SHIPPED' | 'PENDING';
-  date: string;
-  itemsCount: number;
-}
-
-const mockOrders: OrderItem[] = [
-  { id: 'ORD-2026-901', customer: 'Nguyễn Văn A', email: 'vana@gmail.com', total: 1250000, status: 'PROCESSING', date: '22/09/2026 09:15', itemsCount: 3 },
-  { id: 'ORD-2026-902', customer: 'Trần Thị Mai', email: 'maitt@gmail.com', total: 890000, status: 'COMPLETED', date: '22/09/2026 08:40', itemsCount: 2 },
-  { id: 'ORD-2026-903', customer: 'Lê Hoàng Long', email: 'longlh@yahoo.com', total: 2450000, status: 'SHIPPED', date: '21/09/2026 19:20', itemsCount: 4 },
-  { id: 'ORD-2026-904', customer: 'Phạm Thu Trang', email: 'trangpt@gmail.com', total: 450000, status: 'PENDING', date: '21/09/2026 16:05', itemsCount: 1 },
-  { id: 'ORD-2026-905', customer: 'Đỗ Quốc Bảo', email: 'baodq@gmail.com', total: 3100000, status: 'COMPLETED', date: '21/09/2026 14:10', itemsCount: 5 },
-];
-
-const mockProducts = [
-  { id: 1, name: 'Áo sơ mi Oxford Premium', category: 'Thời trang Nam', price: 550000, stock: 45, status: 'Đang bán', sales: 128 },
-  { id: 2, name: 'Đầm lụa Maxi Dạ tiệc', category: 'Thời trang Nữ', price: 1200000, stock: 12, status: 'Sắp hết', sales: 94 },
-  { id: 3, name: 'Áo Blazer Oversize Minimalist', category: 'Unisex', price: 950000, stock: 30, status: 'Đang bán', sales: 215 },
-  { id: 4, name: 'Quần tây Form rộng Ý', category: 'Thời trang Nam', price: 680000, stock: 24, status: 'Đang bán', sales: 86 },
-  { id: 5, name: 'Túi xách da Crossbody', category: 'Phụ kiện', price: 850000, stock: 4, status: 'Cảnh báo kho', sales: 310 },
-];
+import { useStore } from '../../context/StoreContext';
+import type { UserAccount } from '../../context/StoreContext';
 
 export const AdminDashboard: React.FC = () => {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'products' | 'system'>('overview');
+  const { 
+    products, 
+    orders, 
+    users, 
+    addProduct, 
+    toggleProductStatus, 
+    toggleUserActive, 
+    changeUserRole 
+  } = useStore();
+
+  const [activeTab, setActiveTab] = useState<'overview' | 'products' | 'users' | 'system'>('overview');
   const [searchTerm, setSearchTerm] = useState('');
+  const [userSearchTerm, setUserSearchTerm] = useState('');
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncSuccess, setSyncSuccess] = useState(false);
+
+  // New Product Modal State
+  const [isAddProductOpen, setIsAddProductOpen] = useState(false);
+  const [newProductName, setNewProductName] = useState('');
+  const [newProductCategory, setNewProductCategory] = useState('Thời trang Nữ');
+  const [newProductPrice, setNewProductPrice] = useState(790000);
+  const [newProductOriginalPrice, setNewProductOriginalPrice] = useState(990000);
+  const [newProductStock, setNewProductStock] = useState(30);
+  const [newProductImage, setNewProductImage] = useState('https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=600&auto=format&fit=crop&q=80');
+  const [newProductTag, setNewProductTag] = useState('Mới 2026');
+  const [newProductDesc, setNewProductDesc] = useState('Chất liệu vải cao cấp thiết kế may đo thanh lịch.');
+
+  // Dynamically calculate KPIs
+  const totalRevenue = orders.reduce((sum, o) => sum + o.total, 0);
+  const activeProductsCount = products.filter((p) => p.isActive).length;
 
   const handleSyncRedis = () => {
     setIsSyncing(true);
@@ -60,19 +66,56 @@ export const AdminDashboard: React.FC = () => {
       setIsSyncing(false);
       setSyncSuccess(true);
       setTimeout(() => setSyncSuccess(false), 3000);
-    }, 900);
+    }, 800);
   };
 
-  const getStatusBadge = (status: OrderItem['status']) => {
+  const handleCreateProduct = (e: React.FormEvent) => {
+    e.preventDefault();
+    addProduct({
+      name: newProductName,
+      category: newProductCategory,
+      price: newProductPrice,
+      originalPrice: newProductOriginalPrice || undefined,
+      stock: newProductStock,
+      image: newProductImage,
+      tag: newProductTag || undefined,
+      description: newProductDesc,
+    });
+    setIsAddProductOpen(false);
+    // Reset form
+    setNewProductName('');
+  };
+
+  const filteredUsers = users.filter(
+    (u) =>
+      u.fullName.toLowerCase().includes(userSearchTerm.toLowerCase()) ||
+      u.email.toLowerCase().includes(userSearchTerm.toLowerCase()) ||
+      u.phoneNumber.includes(userSearchTerm)
+  );
+
+  const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'COMPLETED':
-        return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800"><CheckCircle2 className="w-3 h-3" /> Hoàn tất</span>;
+      case 'DELIVERED':
+        return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800"><CheckCircle2 className="w-3 h-3" /> Đã giao</span>;
       case 'PROCESSING':
-        return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-800"><Clock className="w-3 h-3" /> Đang xử lý</span>;
+        return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-800"><Clock className="w-3 h-3" /> Đóng gói</span>;
       case 'SHIPPED':
         return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-purple-100 text-purple-800"><ShoppingBag className="w-3 h-3" /> Đang giao</span>;
       case 'PENDING':
         return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800"><AlertTriangle className="w-3 h-3" /> Chờ duyệt</span>;
+      default:
+        return <span className="text-xs text-slate-500">{status}</span>;
+    }
+  };
+
+  const getRoleBadge = (role: UserAccount['role']) => {
+    switch (role) {
+      case 'ROLE_ADMIN':
+        return <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-indigo-100 text-indigo-800 border border-indigo-200">Quản trị viên (ADMIN)</span>;
+      case 'ROLE_STAFF':
+        return <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-teal-100 text-teal-800 border border-teal-200">Nhân viên (STAFF)</span>;
+      case 'ROLE_CUSTOMER':
+        return <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-purple-100 text-purple-800 border border-purple-200">Khách hàng (CUSTOMER)</span>;
     }
   };
 
@@ -82,13 +125,13 @@ export const AdminDashboard: React.FC = () => {
       <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white p-6 sm:p-8 rounded-2xl shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
           <div className="flex items-center gap-2 text-indigo-400 text-xs font-semibold uppercase tracking-wider mb-2">
-            <ShieldCheck className="w-4 h-4" /> Hệ thống Quản trị Cấp cao (Admin Control Center)
+            <ShieldCheck className="w-4 h-4" /> Hệ Thống Quản Trị Cấp Cao (Admin Control Center)
           </div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
-            Xin chào, {user?.fullName || 'Quản trị viên'}
+            Xin chào, {user?.fullName || 'Fashion Store Administrator'}
           </h1>
           <p className="text-slate-300 text-sm mt-1">
-            Theo dõi thời gian thực doanh thu, đơn hàng, hệ thống hạ tầng Micro-monolith và phân quyền người dùng.
+            Toàn quyền quản trị danh mục, sản phẩm, phân quyền nhân viên, khách hàng và giám sát hạ tầng microservices.
           </p>
         </div>
 
@@ -99,20 +142,21 @@ export const AdminDashboard: React.FC = () => {
             className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/10 text-xs font-semibold text-white transition backdrop-blur disabled:opacity-50"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
-            {isSyncing ? 'Đang xoá cache...' : 'Đồng bộ Cache Redis'}
+            {isSyncing ? 'Đang dọn cache...' : 'Đồng bộ Cache Redis'}
           </button>
-          <button className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-xs font-semibold text-white transition shadow-lg shadow-indigo-600/30">
+          <button
+            onClick={() => setIsAddProductOpen(true)}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-xs font-semibold text-white transition shadow-lg shadow-indigo-600/30"
+          >
             <PlusCircle className="w-3.5 h-3.5" /> Thêm sản phẩm
           </button>
         </div>
       </div>
 
       {syncSuccess && (
-        <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm flex items-center justify-between animate-fadeIn">
-          <div className="flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-            <span>Đã làm mới toàn bộ bộ nhớ đệm phân tán Redis (Port 6379)! Dữ liệu catalog và session đã được đồng bộ.</span>
-          </div>
+        <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm flex items-center gap-2 animate-fadeIn">
+          <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+          <span>Đã làm mới và đồng bộ bộ nhớ đệm phân tán Redis (Port 6379)! Session và Catalog cache đã được tối ưu.</span>
         </div>
       )}
 
@@ -120,60 +164,60 @@ export const AdminDashboard: React.FC = () => {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:border-indigo-200 transition">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">Doanh thu tháng 09</span>
+            <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">Tổng Doanh Thu</span>
             <div className="w-9 h-9 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-600">
               <DollarSign className="w-5 h-5" />
             </div>
           </div>
           <div className="mt-3">
-            <div className="text-2xl font-bold text-slate-900">128.540.000 ₫</div>
+            <div className="text-2xl font-bold text-slate-900">{totalRevenue.toLocaleString('vi-VN')} ₫</div>
             <div className="flex items-center gap-1.5 mt-1 text-xs text-emerald-600 font-semibold">
-              <TrendingUp className="w-3.5 h-3.5" /> +14.2% so với tháng trước
+              <TrendingUp className="w-3.5 h-3.5" /> Liên tục theo thời gian thực
             </div>
           </div>
         </div>
 
         <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:border-indigo-200 transition">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">Đơn hàng mới</span>
+            <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">Tổng Đơn Hàng</span>
             <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600">
               <ShoppingBag className="w-5 h-5" />
             </div>
           </div>
           <div className="mt-3">
-            <div className="text-2xl font-bold text-slate-900">342 đơn</div>
+            <div className="text-2xl font-bold text-slate-900">{orders.length} đơn</div>
             <div className="flex items-center gap-1.5 mt-1 text-xs text-blue-600 font-semibold">
-              <TrendingUp className="w-3.5 h-3.5" /> +8.5% tuần này
+              <PackageCheck className="w-3.5 h-3.5" /> Cập nhật liên thông từ Staff
             </div>
           </div>
         </div>
 
         <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:border-indigo-200 transition">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">Sản phẩm kích hoạt</span>
+            <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">Sản Phẩm Đang Bán</span>
             <div className="w-9 h-9 rounded-lg bg-purple-50 flex items-center justify-center text-purple-600">
               <Layers className="w-5 h-5" />
             </div>
           </div>
           <div className="mt-3">
-            <div className="text-2xl font-bold text-slate-900">1,420 SKU</div>
+            <div className="text-2xl font-bold text-slate-900">{activeProductsCount} mẫu</div>
             <div className="flex items-center gap-1.5 mt-1 text-xs text-slate-500">
-              <span>96.4% còn trong kho</span>
+              <span>{products.length} tổng số mẫu catalog</span>
             </div>
           </div>
         </div>
 
         <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:border-indigo-200 transition">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">Khách hàng thành viên</span>
+            <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">Tài Khoản Hệ Thống</span>
             <div className="w-9 h-9 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600">
               <Users className="w-5 h-5" />
             </div>
           </div>
           <div className="mt-3">
-            <div className="text-2xl font-bold text-slate-900">8,924 user</div>
+            <div className="text-2xl font-bold text-slate-900">{users.length} tài khoản</div>
             <div className="flex items-center gap-1.5 mt-1 text-xs text-indigo-600 font-semibold">
-              <TrendingUp className="w-3.5 h-3.5" /> +21.0% tháng này
+              <Shield className="w-3.5 h-3.5" /> Đã phân quyền RBAC
             </div>
           </div>
         </div>
@@ -185,49 +229,47 @@ export const AdminDashboard: React.FC = () => {
           onClick={() => setActiveTab('overview')}
           className={`pb-3 relative transition ${activeTab === 'overview' ? 'text-indigo-600 font-semibold border-b-2 border-indigo-600' : 'hover:text-slate-900'}`}
         >
-          Tổng quan & Đơn hàng
+          Tổng quan & Đơn hàng ({orders.length})
         </button>
         <button
           onClick={() => setActiveTab('products')}
           className={`pb-3 relative transition ${activeTab === 'products' ? 'text-indigo-600 font-semibold border-b-2 border-indigo-600' : 'hover:text-slate-900'}`}
         >
-          Kho hàng & Sản phẩm
+          Quản lý Sản phẩm & Tồn kho ({products.length})
+        </button>
+        <button
+          onClick={() => setActiveTab('users')}
+          className={`pb-3 relative transition ${activeTab === 'users' ? 'text-indigo-600 font-semibold border-b-2 border-indigo-600' : 'hover:text-slate-900'}`}
+        >
+          Quản lý Người dùng & Nhân viên ({users.length})
         </button>
         <button
           onClick={() => setActiveTab('system')}
           className={`pb-3 relative transition ${activeTab === 'system' ? 'text-indigo-600 font-semibold border-b-2 border-indigo-600' : 'hover:text-slate-900'}`}
         >
-          Hạ tầng kỹ thuật & Microservices
+          Hạ tầng Microservices & Cache
         </button>
       </div>
 
-      {/* Tab Content 1: Overview & Orders */}
+      {/* Tab 1: Orders */}
       {activeTab === 'overview' && (
         <div className="space-y-6">
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
             <div className="p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
-                <h3 className="font-semibold text-slate-900 text-base">Đơn hàng mới nhất toàn hệ thống</h3>
-                <p className="text-xs text-slate-500">Cập nhật theo thời gian thực từ cơ sở dữ liệu PostgreSQL</p>
+                <h3 className="font-semibold text-slate-900 text-base">Toàn bộ đơn hàng trong hệ thống</h3>
+                <p className="text-xs text-slate-500">Dữ liệu liên thông trực tiếp từ khách đặt hàng và nhân viên xử lý</p>
               </div>
 
-              <div className="flex items-center gap-2">
-                <div className="relative">
-                  <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
-                  <input
-                    type="text"
-                    placeholder="Tìm mã đơn / khách hàng..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-9 pr-3 py-1.5 rounded-lg border border-slate-200 text-xs focus:ring-1 focus:ring-indigo-500 focus:outline-none w-48 sm:w-64"
-                  />
-                </div>
-                <button className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50">
-                  <Filter className="w-4 h-4" />
-                </button>
-                <button className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50">
-                  <Download className="w-4 h-4" />
-                </button>
+              <div className="relative">
+                <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Tìm mã đơn / khách hàng..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-9 pr-3 py-1.5 rounded-lg border border-slate-200 text-xs focus:ring-1 focus:ring-indigo-500 focus:outline-none w-64"
+                />
               </div>
             </div>
 
@@ -239,30 +281,26 @@ export const AdminDashboard: React.FC = () => {
                     <th className="px-5 py-3">Khách hàng</th>
                     <th className="px-5 py-3">Số lượng</th>
                     <th className="px-5 py-3">Tổng tiền</th>
+                    <th className="px-5 py-3">Phương thức</th>
                     <th className="px-5 py-3">Trạng thái</th>
                     <th className="px-5 py-3">Thời gian</th>
-                    <th className="px-5 py-3 text-right">Thao tác</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {mockOrders.map((order) => (
+                  {orders.map((order) => (
                     <tr key={order.id} className="hover:bg-slate-50/70 transition">
                       <td className="px-5 py-3.5 font-mono font-semibold text-slate-900 text-xs">{order.id}</td>
                       <td className="px-5 py-3.5">
-                        <div className="font-medium text-slate-900">{order.customer}</div>
-                        <div className="text-xs text-slate-400">{order.email}</div>
+                        <div className="font-medium text-slate-900">{order.customerName}</div>
+                        <div className="text-xs text-slate-400">{order.customerEmail}</div>
                       </td>
-                      <td className="px-5 py-3.5 text-xs">{order.itemsCount} sản phẩm</td>
+                      <td className="px-5 py-3.5 text-xs">{order.items.reduce((s, i) => s + i.quantity, 0)} món</td>
                       <td className="px-5 py-3.5 font-semibold text-slate-900">
                         {order.total.toLocaleString('vi-VN')} ₫
                       </td>
+                      <td className="px-5 py-3.5 text-xs font-mono">{order.paymentMethod}</td>
                       <td className="px-5 py-3.5">{getStatusBadge(order.status)}</td>
-                      <td className="px-5 py-3.5 text-xs text-slate-500">{order.date}</td>
-                      <td className="px-5 py-3.5 text-right">
-                        <button className="p-1 text-slate-400 hover:text-indigo-600 transition" title="Xem chi tiết">
-                          <Eye className="w-4 h-4" />
-                        </button>
-                      </td>
+                      <td className="px-5 py-3.5 text-xs text-slate-500">{order.createdAt}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -272,46 +310,66 @@ export const AdminDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* Tab Content 2: Products */}
+      {/* Tab 2: Products & Catalog CRUD */}
       {activeTab === 'products' && (
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
           <div className="p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <h3 className="font-semibold text-slate-900 text-base">Danh mục thời trang & Tồn kho</h3>
-              <p className="text-xs text-slate-500">Quản lý giá niêm yết, định lượng tồn kho và doanh số</p>
+              <h3 className="font-semibold text-slate-900 text-base">Quản lý danh mục & Mẫu thiết kế</h3>
+              <p className="text-xs text-slate-500">Thêm, sửa giá bán, cập nhật trạng thái hiển thị trên Trang Chủ</p>
             </div>
-            <button className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-semibold hover:bg-indigo-700 transition">
-              <PlusCircle className="w-3.5 h-3.5" /> Tạo mẫu mới
+            <button
+              onClick={() => setIsAddProductOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-semibold hover:bg-indigo-700 transition"
+            >
+              <PlusCircle className="w-3.5 h-3.5" /> Thêm sản phẩm mới
             </button>
           </div>
+
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm text-slate-600">
               <thead className="bg-slate-50 text-slate-700 text-xs font-semibold uppercase tracking-wider border-b border-slate-100">
                 <tr>
-                  <th className="px-5 py-3">ID</th>
+                  <th className="px-5 py-3">Ảnh</th>
                   <th className="px-5 py-3">Tên sản phẩm</th>
                   <th className="px-5 py-3">Danh mục</th>
                   <th className="px-5 py-3">Giá bán</th>
                   <th className="px-5 py-3">Tồn kho</th>
-                  <th className="px-5 py-3">Đã bán</th>
                   <th className="px-5 py-3">Trạng thái</th>
+                  <th className="px-5 py-3 text-right">Thao tác</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {mockProducts.map((p) => (
+                {products.map((p) => (
                   <tr key={p.id} className="hover:bg-slate-50/70 transition">
-                    <td className="px-5 py-3.5 font-mono text-xs text-slate-400">#{p.id}</td>
+                    <td className="px-5 py-3">
+                      <img src={p.image} alt={p.name} className="w-10 h-10 object-cover rounded-lg bg-slate-100" />
+                    </td>
                     <td className="px-5 py-3.5 font-medium text-slate-900">{p.name}</td>
                     <td className="px-5 py-3.5 text-xs text-slate-500">{p.category}</td>
                     <td className="px-5 py-3.5 font-semibold text-slate-900">{p.price.toLocaleString('vi-VN')} ₫</td>
-                    <td className="px-5 py-3.5 font-mono text-xs">{p.stock} chiếc</td>
-                    <td className="px-5 py-3.5 text-xs">{p.sales} chiếc</td>
+                    <td className="px-5 py-3.5 font-mono text-xs">
+                      <span className={p.stock <= 5 ? 'text-red-600 font-bold' : 'text-slate-800'}>
+                        {p.stock} chiếc
+                      </span>
+                    </td>
                     <td className="px-5 py-3.5">
                       <span className={`inline-block px-2 py-0.5 rounded text-[11px] font-semibold ${
-                        p.stock < 10 ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'
+                        p.isActive ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'
                       }`}>
-                        {p.status}
+                        {p.isActive ? 'Đang bán' : 'Đã ẩn'}
                       </span>
+                    </td>
+                    <td className="px-5 py-3.5 text-right">
+                      <button
+                        onClick={() => toggleProductStatus(p.id)}
+                        className={`p-1.5 rounded-lg text-xs font-semibold transition ${
+                          p.isActive ? 'text-amber-600 hover:bg-amber-50' : 'text-emerald-600 hover:bg-emerald-50'
+                        }`}
+                        title={p.isActive ? 'Ẩn khỏi cửa hàng' : 'Bật hiển thị'}
+                      >
+                        {p.isActive ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -321,7 +379,90 @@ export const AdminDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* Tab Content 3: Technical / Microservices */}
+      {/* Tab 3: Users & Staff RBAC Management */}
+      {activeTab === 'users' && (
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden space-y-4">
+          <div className="p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h3 className="font-semibold text-slate-900 text-base">Quản lý Tài khoản & Phân quyền</h3>
+              <p className="text-xs text-slate-500">Phân quyền vai trò (Admin, Staff, Customer) và khóa/kích hoạt tài khoản</p>
+            </div>
+
+            <div className="relative">
+              <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Tìm tên, email, SĐT..."
+                value={userSearchTerm}
+                onChange={(e) => setUserSearchTerm(e.target.value)}
+                className="pl-9 pr-3 py-1.5 rounded-lg border border-slate-200 text-xs focus:ring-1 focus:ring-indigo-500 focus:outline-none w-64"
+              />
+            </div>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm text-slate-600">
+              <thead className="bg-slate-50 text-slate-700 text-xs font-semibold uppercase tracking-wider border-b border-slate-100">
+                <tr>
+                  <th className="px-5 py-3">Người dùng</th>
+                  <th className="px-5 py-3">Số điện thoại</th>
+                  <th className="px-5 py-3">Vai trò hiện tại</th>
+                  <th className="px-5 py-3">Ngày tham gia</th>
+                  <th className="px-5 py-3">Trạng thái</th>
+                  <th className="px-5 py-3 text-right">Hành động</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {filteredUsers.map((u) => (
+                  <tr key={u.id} className="hover:bg-slate-50/70 transition">
+                    <td className="px-5 py-3.5">
+                      <div className="font-medium text-slate-900">{u.fullName}</div>
+                      <div className="text-xs text-slate-400">{u.email}</div>
+                    </td>
+                    <td className="px-5 py-3.5 text-xs font-mono">{u.phoneNumber}</td>
+                    <td className="px-5 py-3.5">
+                      {getRoleBadge(u.role)}
+                    </td>
+                    <td className="px-5 py-3.5 text-xs text-slate-500">{u.joinedDate}</td>
+                    <td className="px-5 py-3.5">
+                      <span className={`inline-block px-2 py-0.5 rounded text-[11px] font-semibold ${
+                        u.active ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'
+                      }`}>
+                        {u.active ? 'Hoạt động' : 'Đã khóa'}
+                      </span>
+                    </td>
+                    <td className="px-5 py-3.5 text-right space-x-2">
+                      {/* Change Role Selector */}
+                      <select
+                        value={u.role}
+                        onChange={(e) => changeUserRole(u.id, e.target.value as UserAccount['role'])}
+                        className="text-xs border border-slate-200 rounded-md p-1 bg-white focus:outline-none"
+                      >
+                        <option value="ROLE_CUSTOMER">ROLE_CUSTOMER</option>
+                        <option value="ROLE_STAFF">ROLE_STAFF</option>
+                        <option value="ROLE_ADMIN">ROLE_ADMIN</option>
+                      </select>
+
+                      {/* Toggle Active Button */}
+                      <button
+                        onClick={() => toggleUserActive(u.id)}
+                        className={`p-1.5 rounded-lg text-xs font-semibold transition ${
+                          u.active ? 'text-red-600 hover:bg-red-50' : 'text-emerald-600 hover:bg-emerald-50'
+                        }`}
+                        title={u.active ? 'Khóa tài khoản' : 'Mở khóa tài khoản'}
+                      >
+                        {u.active ? <UserX className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Tab 4: Technical & Microservices */}
       {activeTab === 'system' && (
         <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
@@ -381,17 +522,140 @@ export const AdminDashboard: React.FC = () => {
               </div>
             </div>
           </div>
+        </div>
+      )}
 
-          <div className="bg-slate-900 text-white rounded-xl p-6">
-            <h4 className="font-semibold text-sm text-indigo-400 mb-2">Thông số cấu hình môi trường</h4>
-            <pre className="font-mono text-xs text-slate-300 overflow-x-auto leading-relaxed">
-{`GATEWAY_PORT=8081
-BACKEND_PORT=8080
-DATABASE_URL=jdbc:postgresql://localhost:5432/fashion_store_db
-REDIS_HOST=localhost:6379
-JWT_EXPIRATION_MS=86400000 (24h)
-REFRESH_TOKEN_EXPIRATION_MS=604800000 (7 days)`}
-            </pre>
+      {/* Add Product Modal */}
+      {isAddProductOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div onClick={() => setIsAddProductOpen(false)} className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs" />
+          <div className="relative bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 sm:p-8 z-10 animate-fadeIn space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <PlusCircle className="w-5 h-5 text-indigo-600" />
+                <h3 className="font-bold text-slate-900 text-base">Thêm Mẫu Thiết Kế Mới</h3>
+              </div>
+              <button onClick={() => setIsAddProductOpen(false)} className="p-1 rounded-lg text-slate-400 hover:text-slate-700">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateProduct} className="space-y-3.5">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Tên sản phẩm *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Ví dụ: Đầm Voan Hoa Nhí Mùa Thu"
+                  value={newProductName}
+                  onChange={(e) => setNewProductName(e.target.value)}
+                  className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Danh mục *</label>
+                  <select
+                    value={newProductCategory}
+                    onChange={(e) => setNewProductCategory(e.target.value)}
+                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+                  >
+                    <option value="Thời trang Nữ">Thời trang Nữ</option>
+                    <option value="Thời trang Nam">Thời trang Nam</option>
+                    <option value="Phụ kiện">Phụ kiện</option>
+                    <option value="Unisex">Unisex</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Nhãn nổi bật</label>
+                  <input
+                    type="text"
+                    placeholder="Mới / Hot / Giảm 20%"
+                    value={newProductTag}
+                    onChange={(e) => setNewProductTag(e.target.value)}
+                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Giá bán (₫) *</label>
+                  <input
+                    type="number"
+                    min="10000"
+                    step="10000"
+                    required
+                    value={newProductPrice}
+                    onChange={(e) => setNewProductPrice(parseInt(e.target.value) || 0)}
+                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Giá gốc (₫)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="10000"
+                    value={newProductOriginalPrice}
+                    onChange={(e) => setNewProductOriginalPrice(parseInt(e.target.value) || 0)}
+                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Tồn kho ban đầu *</label>
+                  <input
+                    type="number"
+                    min="1"
+                    required
+                    value={newProductStock}
+                    onChange={(e) => setNewProductStock(parseInt(e.target.value) || 0)}
+                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Đường dẫn ảnh (URL) *</label>
+                <input
+                  type="url"
+                  required
+                  value={newProductImage}
+                  onChange={(e) => setNewProductImage(e.target.value)}
+                  className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Mô tả sản phẩm</label>
+                <textarea
+                  rows={2}
+                  value={newProductDesc}
+                  onChange={(e) => setNewProductDesc(e.target.value)}
+                  className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setIsAddProductOpen(false)}
+                  className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg shadow-sm transition"
+                >
+                  Lưu & Xuất bản lên Website
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

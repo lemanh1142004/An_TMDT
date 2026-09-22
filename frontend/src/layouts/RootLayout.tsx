@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { 
   ShoppingBag, 
@@ -11,9 +11,14 @@ import {
   Sparkles
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useStore } from '../context/StoreContext';
+import { CartDrawer } from '../components/CartDrawer';
+import { CheckoutModal } from '../components/CheckoutModal';
 
 export const RootLayout: React.FC = () => {
   const { user, isAuthenticated, logout } = useAuth();
+  const { cart, setIsCartOpen } = useStore();
+  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -22,16 +27,18 @@ export const RootLayout: React.FC = () => {
     navigate('/login');
   };
 
+  // Strict role detection (Admin, Staff, Customer are mutually separated)
   const isAdmin = user?.roles.includes('ROLE_ADMIN');
-  const isStaff = user?.roles.includes('ROLE_STAFF');
-  const isCustomer = user?.roles.includes('ROLE_CUSTOMER');
+  const isStaff = !isAdmin && user?.roles.includes('ROLE_STAFF');
+  const isCustomer = !isAdmin && !isStaff && user?.roles.includes('ROLE_CUSTOMER');
+  const totalCartItems = cart.reduce((sum, item) => sum + item.quantity, 0);
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 font-sans">
       {/* Top Notification Announcement Bar */}
       <div className="bg-slate-950 text-white text-[11px] py-2 px-4 text-center font-medium tracking-wide flex items-center justify-center gap-2">
         <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-        <span>Ưu đãi Thu - Đông 2026: Miễn phí vận chuyển toàn quốc cho đơn hàng từ 500.000 ₫</span>
+        <span>Ưu đãi Thu - Đông 2026: Miễn phí vận chuyển toàn quốc cho đơn hàng từ 500.000 ₫ | Voucher FASHION20 (-20%)</span>
       </div>
 
       {/* Main Header */}
@@ -52,7 +59,7 @@ export const RootLayout: React.FC = () => {
           <nav className="hidden md:flex items-center gap-6 text-sm font-semibold text-slate-600">
             <Link
               to="/"
-              className={`hover:text-indigo-600 transition ${location.pathname === '/' ? 'text-indigo-600' : ''}`}
+              className={`hover:text-indigo-600 transition ${location.pathname === '/' ? 'text-indigo-600 font-bold' : ''}`}
             >
               Trang chủ
             </Link>
@@ -69,51 +76,65 @@ export const RootLayout: React.FC = () => {
 
           {/* Right Action Buttons */}
           <div className="flex items-center gap-2 sm:gap-3">
-            {/* Role Portals Quick Access for Logged-in Users */}
-            {isAuthenticated && user && (
-              <div className="flex items-center gap-2">
-                {isAdmin && (
-                  <Link
-                    to="/admin"
-                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition shadow-xs ${
-                      location.pathname.startsWith('/admin')
-                        ? 'bg-indigo-600 text-white'
-                        : 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200'
-                    }`}
-                  >
-                    <ShieldCheck className="w-3.5 h-3.5" />
-                    <span className="hidden sm:inline">Quản trị Admin</span>
-                  </Link>
-                )}
+            {/* 1. ADMIN EXCLUSIVE: Only show Admin Management Portal */}
+            {isAdmin && (
+              <Link
+                to="/admin"
+                className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition shadow-xs ${
+                  location.pathname.startsWith('/admin')
+                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200'
+                    : 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200'
+                }`}
+              >
+                <ShieldCheck className="w-3.5 h-3.5" />
+                <span>Quản trị Admin</span>
+              </Link>
+            )}
 
-                {(isStaff || isAdmin) && (
-                  <Link
-                    to="/staff"
-                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition shadow-xs ${
-                      location.pathname.startsWith('/staff')
-                        ? 'bg-teal-600 text-white'
-                        : 'bg-teal-50 text-teal-700 hover:bg-teal-100 border border-teal-200'
-                    }`}
-                  >
-                    <Package className="w-3.5 h-3.5" />
-                    <span className="hidden sm:inline">Kênh Nhân viên</span>
-                  </Link>
-                )}
+            {/* 2. STAFF EXCLUSIVE: Only show Staff Fulfillment Portal */}
+            {isStaff && (
+              <Link
+                to="/staff"
+                className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition shadow-xs ${
+                  location.pathname.startsWith('/staff')
+                    ? 'bg-teal-600 text-white shadow-md shadow-teal-200'
+                    : 'bg-teal-50 text-teal-700 hover:bg-teal-100 border border-teal-200'
+                }`}
+              >
+                <Package className="w-3.5 h-3.5" />
+                <span>Kênh Nhân viên</span>
+              </Link>
+            )}
 
-                {isCustomer && (
-                  <Link
-                    to="/customer"
-                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition shadow-xs ${
-                      location.pathname.startsWith('/customer')
-                        ? 'bg-purple-600 text-white'
-                        : 'bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200'
-                    }`}
-                  >
-                    <UserIcon className="w-3.5 h-3.5" />
-                    <span className="hidden sm:inline">Tủ đồ & Đơn mua</span>
-                  </Link>
+            {/* 3. CUSTOMER EXCLUSIVE: Show Customer Portal (Tủ đồ & Đơn mua) */}
+            {isCustomer && (
+              <Link
+                to="/customer"
+                className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition shadow-xs ${
+                  location.pathname.startsWith('/customer')
+                    ? 'bg-purple-600 text-white shadow-md shadow-purple-200'
+                    : 'bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200'
+                }`}
+              >
+                <UserIcon className="w-3.5 h-3.5" />
+                <span>Tủ đồ & Đơn mua</span>
+              </Link>
+            )}
+
+            {/* 4. SHOPPING CART: Available for Customers and Guests (Hidden for Admin & Staff) */}
+            {!isAdmin && !isStaff && (
+              <button
+                onClick={() => setIsCartOpen(true)}
+                className="relative p-2 text-slate-700 hover:text-indigo-600 hover:bg-slate-100 rounded-xl transition"
+                title="Giỏ hàng"
+              >
+                <ShoppingBag className="w-5 h-5" />
+                {totalCartItems > 0 && (
+                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-indigo-600 text-white text-[10px] font-extrabold rounded-full flex items-center justify-center shadow-md animate-scaleIn">
+                    {totalCartItems}
+                  </span>
                 )}
-              </div>
+              </button>
             )}
 
             {/* Profile or Login */}
@@ -159,6 +180,12 @@ export const RootLayout: React.FC = () => {
         </div>
       </header>
 
+      {/* Cart Drawer */}
+      <CartDrawer onOpenCheckout={() => setIsCheckoutOpen(true)} />
+
+      {/* Checkout Modal */}
+      <CheckoutModal isOpen={isCheckoutOpen} onClose={() => setIsCheckoutOpen(false)} />
+
       {/* Page Body */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Outlet />
@@ -183,7 +210,7 @@ export const RootLayout: React.FC = () => {
             <div>
               <h4 className="text-xs font-bold uppercase tracking-wider text-slate-300 mb-3">Dành cho Khách hàng</h4>
               <ul className="space-y-2 text-xs text-slate-400">
-                <li><Link to="/customer" className="hover:text-white transition">Theo dõi đơn hàng</Link></li>
+                <li><Link to="/customer" className="hover:text-white transition">Theo dõi đơn hàng (My Orders)</Link></li>
                 <li><a href="#" className="hover:text-white transition">Chính sách đổi trả 30 ngày</a></li>
                 <li><a href="#" className="hover:text-white transition">Bảng quy đổi kích cỡ (Size Guide)</a></li>
                 <li><a href="#" className="hover:text-white transition">Hướng dẫn thanh toán VNPAY/COD</a></li>
@@ -219,7 +246,7 @@ export const RootLayout: React.FC = () => {
 
           <div className="pt-8 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-4">
             <p>© {new Date().getFullYear()} Fashion Store Platform. Tất cả quyền được bảo lưu.</p>
-            <p className="font-mono text-[11px]">Clean Architecture • RBAC • Spring Security 6</p>
+            <p className="font-mono text-[11px]">Strict Role Isolation • RBAC • Spring Security 6</p>
           </div>
         </div>
       </footer>

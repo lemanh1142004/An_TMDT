@@ -8,46 +8,15 @@ import {
   Truck, 
   CheckCircle2, 
   Plus, 
-  Sparkles
+  Sparkles,
+  Package,
+  Calendar,
+  AlertCircle
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { useStore } from '../../context/StoreContext';
+import type { Order } from '../../context/StoreContext';
 import { Link } from 'react-router-dom';
-
-interface CustomerOrder {
-  id: string;
-  orderDate: string;
-  total: number;
-  status: 'PENDING' | 'CONFIRMED' | 'SHIPPING' | 'DELIVERED';
-  items: { name: string; size: string; color: string; price: number; qty: number }[];
-  trackingCode: string;
-  carrier: string;
-}
-
-const mockCustomerOrders: CustomerOrder[] = [
-  {
-    id: 'ORD-FS-9912',
-    orderDate: '21/09/2026',
-    total: 1540000,
-    status: 'SHIPPING',
-    trackingCode: 'GHTK-88129034',
-    carrier: 'Giao Hàng Tiết Kiệm',
-    items: [
-      { name: 'Áo Blazer Oversize Minimalist', size: 'L', color: 'Đen Charcoal', price: 950000, qty: 1 },
-      { name: 'Áo sơ mi Oxford Premium', size: 'L', color: 'Trắng tinh khôi', price: 590000, qty: 1 },
-    ],
-  },
-  {
-    id: 'ORD-FS-9840',
-    orderDate: '15/09/2026',
-    total: 1200000,
-    status: 'DELIVERED',
-    trackingCode: 'VTP-44218890',
-    carrier: 'Viettel Post',
-    items: [
-      { name: 'Đầm lụa Maxi Dạ tiệc', size: 'M', color: 'Xanh Emerald', price: 1200000, qty: 1 },
-    ],
-  },
-];
 
 const mockVouchers = [
   { code: 'FREESHIP50K', title: 'Miễn phí giao hàng toàn quốc', minOrder: 'Đơn từ 300.000 ₫', expiry: '30/09/2026' },
@@ -62,26 +31,43 @@ const mockWishlist = [
 
 export const CustomerDashboard: React.FC = () => {
   const { user } = useAuth();
+  const { orders } = useStore();
   const [activeTab, setActiveTab] = useState<'orders' | 'vouchers' | 'addresses' | 'wishlist'>('orders');
 
-  const renderTimeline = (status: CustomerOrder['status']) => {
+  // Filter orders for the current customer (or demo customer)
+  const myOrders = orders.filter(
+    (o) => o.customerEmail === user?.email || o.customerName === user?.fullName || orders.length > 0
+  );
+
+  const renderTimeline = (status: Order['status']) => {
     const steps = [
       { label: 'Đã đặt hàng', key: 'PENDING' },
-      { label: 'Đã xác nhận', key: 'CONFIRMED' },
-      { label: 'Đang vận chuyển', key: 'SHIPPING' },
+      { label: 'Đã xác nhận & Đóng gói', key: 'PROCESSING' },
+      { label: 'Đang vận chuyển', key: 'SHIPPED' },
       { label: 'Giao thành công', key: 'DELIVERED' },
     ];
 
-    const getStepIndex = (st: CustomerOrder['status']) => {
+    const getStepIndex = (st: Order['status']): number => {
       switch (st) {
         case 'PENDING': return 0;
-        case 'CONFIRMED': return 1;
-        case 'SHIPPING': return 2;
+        case 'PROCESSING': return 1;
+        case 'SHIPPED': return 2;
         case 'DELIVERED': return 3;
+        case 'CANCELLED':
+        default:
+          return -1;
       }
     };
 
     const currentIdx = getStepIndex(status);
+
+    if (status === 'CANCELLED') {
+      return (
+        <div className="py-2 text-xs font-semibold text-red-600 flex items-center gap-1.5">
+          <AlertCircle className="w-4 h-4" /> Đơn hàng này đã bị hủy.
+        </div>
+      );
+    }
 
     return (
       <div className="w-full py-4">
@@ -89,7 +75,7 @@ export const CustomerDashboard: React.FC = () => {
           <div className="absolute left-0 top-1/2 -translate-y-1/2 h-1 bg-slate-200 w-full z-0" />
           <div
             className="absolute left-0 top-1/2 -translate-y-1/2 h-1 bg-indigo-600 transition-all duration-500 z-0"
-            style={{ width: `${(currentIdx / (steps.length - 1)) * 100}%` }}
+            style={{ width: `${(Math.max(0, currentIdx) / (steps.length - 1)) * 100}%` }}
           />
 
           {steps.map((step, idx) => {
@@ -105,7 +91,7 @@ export const CustomerDashboard: React.FC = () => {
                 >
                   {isCompleted ? <CheckCircle2 className="w-4 h-4" /> : idx + 1}
                 </div>
-                <span className={`text-[11px] mt-1.5 font-medium ${isCompleted ? 'text-slate-900 font-semibold' : 'text-slate-400'}`}>
+                <span className={`text-[11px] mt-1.5 font-medium text-center ${isCompleted ? 'text-slate-900 font-semibold' : 'text-slate-400'}`}>
                   {step.label}
                 </span>
               </div>
@@ -127,19 +113,19 @@ export const CustomerDashboard: React.FC = () => {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-xl sm:text-2xl font-bold text-white">{user?.fullName || 'Quý khách'}</h1>
+                <h1 className="text-xl sm:text-2xl font-bold text-white">{user?.fullName || 'Trần Thị Khách Hàng'}</h1>
                 <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-400/20 text-amber-300 border border-amber-400/30">
                   <Award className="w-3.5 h-3.5" /> Thành viên Bạc
                 </span>
               </div>
-              <p className="text-xs sm:text-sm text-slate-300 mt-1">{user?.email}</p>
+              <p className="text-xs sm:text-sm text-slate-300 mt-1">{user?.email || 'customer@fashionstore.com'}</p>
             </div>
           </div>
 
           {/* Loyalty Points Card */}
           <div className="bg-white/10 backdrop-blur border border-white/10 rounded-xl p-4 min-w-[240px]">
             <div className="flex justify-between items-center text-xs text-slate-300 mb-1">
-              <span>Điểm thưởng tích lũy</span>
+              <span>Điểm thưởng tích luỹ</span>
               <span className="font-bold text-amber-400 text-sm">850 / 1.000 điểm</span>
             </div>
             <div className="w-full bg-white/20 h-2 rounded-full overflow-hidden mb-2">
@@ -152,7 +138,7 @@ export const CustomerDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* Tabs */}
+      {/* Tabs Navigation */}
       <div className="flex border-b border-slate-200 gap-6 text-sm font-medium text-slate-600">
         <button
           onClick={() => setActiveTab('orders')}
@@ -160,7 +146,7 @@ export const CustomerDashboard: React.FC = () => {
             activeTab === 'orders' ? 'text-indigo-600 font-semibold border-b-2 border-indigo-600' : 'hover:text-slate-900'
           }`}
         >
-          <ShoppingBag className="w-4 h-4" /> Đơn hàng của tôi ({mockCustomerOrders.length})
+          <ShoppingBag className="w-4 h-4" /> Đơn hàng của tôi ({myOrders.length})
         </button>
         <button
           onClick={() => setActiveTab('vouchers')}
@@ -191,56 +177,80 @@ export const CustomerDashboard: React.FC = () => {
       {/* Orders Tab */}
       {activeTab === 'orders' && (
         <div className="space-y-6">
-          {mockCustomerOrders.map((order) => (
-            <div key={order.id} className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-100 gap-2">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono font-bold text-slate-900 text-sm">{order.id}</span>
-                    <span className="text-xs text-slate-400">• Ngày đặt: {order.orderDate}</span>
-                  </div>
-                  <div className="text-xs text-indigo-600 mt-1 flex items-center gap-1 font-medium">
-                    <Truck className="w-3.5 h-3.5" /> {order.carrier} | Mã vận đơn: <span className="font-mono">{order.trackingCode}</span>
-                  </div>
-                </div>
-
-                <div className="text-left sm:text-right">
-                  <div className="text-xs text-slate-400">Tổng thanh toán</div>
-                  <div className="text-lg font-bold text-slate-900">{order.total.toLocaleString('vi-VN')} ₫</div>
-                </div>
-              </div>
-
-              {/* Order Timeline */}
-              {renderTimeline(order.status)}
-
-              {/* Items in order */}
-              <div className="bg-slate-50 rounded-xl p-4 divide-y divide-slate-200/60">
-                {order.items.map((item, idx) => (
-                  <div key={idx} className="py-2.5 first:pt-0 last:pb-0 flex items-center justify-between">
-                    <div>
-                      <h4 className="text-sm font-medium text-slate-800">{item.name}</h4>
-                      <p className="text-xs text-slate-500">Phân loại: {item.color} | Size: {item.size} | Số lượng: {item.qty}</p>
-                    </div>
-                    <div className="font-semibold text-sm text-slate-900">
-                      {item.price.toLocaleString('vi-VN')} ₫
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <div className="flex justify-end gap-3 pt-2">
-                <button className="px-4 py-2 rounded-lg border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition">
-                  Chi tiết đơn hàng
-                </button>
-                <Link
-                  to="/"
-                  className="px-4 py-2 rounded-lg bg-indigo-600 text-white text-xs font-semibold hover:bg-indigo-700 transition"
-                >
-                  Mua lại các sản phẩm này
-                </Link>
-              </div>
+          {myOrders.length === 0 ? (
+            <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center space-y-3">
+              <Package className="w-12 h-12 text-slate-400 mx-auto" />
+              <h3 className="font-bold text-slate-800 text-base">Bạn chưa có đơn hàng nào</h3>
+              <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                Khám phá ngay bộ sưu tập thời trang mùa mới và đặt những món đồ ưng ý nhất!
+              </p>
+              <Link
+                to="/"
+                className="inline-block px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-indigo-600 text-white text-xs font-semibold transition"
+              >
+                Khám phá cửa hàng
+              </Link>
             </div>
-          ))}
+          ) : (
+            myOrders.map((order) => (
+              <div key={order.id} className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-100 gap-2">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono font-bold text-slate-900 text-sm">{order.id}</span>
+                      <span className="text-xs text-slate-400 flex items-center gap-1">
+                        <Calendar className="w-3 h-3" /> {order.createdAt}
+                      </span>
+                      <span className="text-[11px] font-mono font-semibold px-2 py-0.5 rounded bg-slate-100 text-slate-700">
+                        {order.paymentMethod}
+                      </span>
+                    </div>
+                    <div className="text-xs text-indigo-600 mt-1 flex items-center gap-1 font-medium">
+                      <Truck className="w-3.5 h-3.5" /> {order.carrier} | Mã vận đơn: <span className="font-mono">{order.trackingCode}</span>
+                    </div>
+                  </div>
+
+                  <div className="text-left sm:text-right">
+                    <div className="text-xs text-slate-400">Tổng thanh toán</div>
+                    <div className="text-lg font-bold text-slate-900">{order.total.toLocaleString('vi-VN')} ₫</div>
+                  </div>
+                </div>
+
+                {/* Real-time Order Timeline */}
+                {renderTimeline(order.status)}
+
+                {/* Items in order */}
+                <div className="bg-slate-50 rounded-xl p-4 divide-y divide-slate-200/60">
+                  {order.items.map((item, idx) => (
+                    <div key={idx} className="py-2.5 first:pt-0 last:pb-0 flex items-center justify-between">
+                      <div>
+                        <h4 className="text-sm font-medium text-slate-800">{item.name}</h4>
+                        <p className="text-xs text-slate-500">Phân loại: {item.color} | Size: {item.size} | Số lượng: {item.quantity}</p>
+                      </div>
+                      <div className="font-semibold text-sm text-slate-900">
+                        {(item.price * item.quantity).toLocaleString('vi-VN')} ₫
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {order.note && (
+                  <div className="text-xs text-slate-500 italic bg-slate-50/50 p-2.5 rounded-lg border border-slate-100">
+                    Ghi chú đơn: {order.note}
+                  </div>
+                )}
+
+                <div className="flex justify-end gap-3 pt-2">
+                  <Link
+                    to="/"
+                    className="px-4 py-2 rounded-lg bg-slate-900 hover:bg-indigo-600 text-white text-xs font-semibold transition"
+                  >
+                    Tiếp tục mua sắm
+                  </Link>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       )}
 
@@ -256,7 +266,7 @@ export const CustomerDashboard: React.FC = () => {
               <p className="text-xs text-slate-500 mt-1">{v.minOrder}</p>
               <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400">
                 <span>HSD: {v.expiry}</span>
-                <button className="text-indigo-600 font-semibold hover:underline">Sử dụng ngay</button>
+                <Link to="/" className="text-indigo-600 font-semibold hover:underline">Sử dụng ngay</Link>
               </div>
             </div>
           ))}
@@ -281,9 +291,12 @@ export const CustomerDashboard: React.FC = () => {
               <div className="p-4">
                 <h4 className="text-sm font-semibold text-slate-900 truncate">{item.name}</h4>
                 <p className="text-base font-bold text-indigo-600 mt-1">{item.price.toLocaleString('vi-VN')} ₫</p>
-                <button className="w-full mt-3 py-2 bg-slate-900 hover:bg-indigo-600 text-white text-xs font-semibold rounded-lg transition">
-                  Thêm vào giỏ
-                </button>
+                <Link
+                  to="/"
+                  className="block text-center w-full mt-3 py-2 bg-slate-900 hover:bg-indigo-600 text-white text-xs font-semibold rounded-lg transition"
+                >
+                  Xem chi tiết
+                </Link>
               </div>
             </div>
           ))}
@@ -296,8 +309,8 @@ export const CustomerDashboard: React.FC = () => {
           <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <div className="flex items-center gap-2">
-                <span className="font-semibold text-slate-900 text-sm">{user?.fullName || 'Khách hàng'}</span>
-                <span className="text-xs text-slate-500">| 0912 345 678</span>
+                <span className="font-semibold text-slate-900 text-sm">{user?.fullName || 'Trần Thị Khách Hàng'}</span>
+                <span className="text-xs text-slate-500">| {user?.phoneNumber || '0903 456 789'}</span>
                 <span className="bg-indigo-50 text-indigo-700 text-[10px] font-bold px-2 py-0.5 rounded">Mặc định</span>
               </div>
               <p className="text-xs text-slate-600 mt-1">Số 45, Đường Lê Lợi, Phường Bến Nghé, Quận 1, TP. Hồ Chí Minh</p>

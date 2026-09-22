@@ -20,122 +20,48 @@ import {
 import { Link } from 'react-router-dom';
 import { checkHealth } from '../services/api';
 import type { HealthCheckResponse } from '../types';
-
-interface Product {
-  id: number;
-  name: string;
-  category: string;
-  price: number;
-  originalPrice?: number;
-  image: string;
-  tag?: string;
-  rating: number;
-  reviewsCount: number;
-}
-
-const featuredProducts: Product[] = [
-  {
-    id: 1,
-    name: 'Áo Blazer Minimalist Oversize',
-    category: 'Bộ sưu tập Thu Đông',
-    price: 950000,
-    originalPrice: 1350000,
-    image: 'https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=600&auto=format&fit=crop&q=80',
-    tag: 'Giảm 30%',
-    rating: 4.9,
-    reviewsCount: 84,
-  },
-  {
-    id: 2,
-    name: 'Đầm Lụa Satin Maxi Dạ Tiệc',
-    category: 'Thời trang Nữ',
-    price: 1200000,
-    originalPrice: 1600000,
-    image: 'https://images.unsplash.com/photo-1572804013309-59a88b7e92f1?w=600&auto=format&fit=crop&q=80',
-    tag: 'Bán chạy',
-    rating: 5.0,
-    reviewsCount: 112,
-  },
-  {
-    id: 3,
-    name: 'Áo Sơ Mi Oxford Cotton Premium',
-    category: 'Thời trang Nam',
-    price: 550000,
-    originalPrice: 690000,
-    image: 'https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?w=600&auto=format&fit=crop&q=80',
-    tag: 'New',
-    rating: 4.8,
-    reviewsCount: 65,
-  },
-  {
-    id: 4,
-    name: 'Quần Tây Form Ý Dáng Rộng',
-    category: 'Thời trang Nam',
-    price: 680000,
-    image: 'https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?w=600&auto=format&fit=crop&q=80',
-    tag: 'Hot',
-    rating: 4.7,
-    reviewsCount: 42,
-  },
-  {
-    id: 5,
-    name: 'Túi Xách Da Crossbody Nữ Tinh Tế',
-    category: 'Phụ kiện',
-    price: 850000,
-    originalPrice: 1100000,
-    image: 'https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=600&auto=format&fit=crop&q=80',
-    tag: 'Giảm 23%',
-    rating: 4.9,
-    reviewsCount: 98,
-  },
-  {
-    id: 6,
-    name: 'Áo Len Dệt Kim Cổ Lọ Thu Đông',
-    category: 'Unisex',
-    price: 720000,
-    image: 'https://images.unsplash.com/photo-1576871337622-98d48d1cf531?w=600&auto=format&fit=crop&q=80',
-    tag: 'New Season',
-    rating: 4.8,
-    reviewsCount: 53,
-  },
-];
+import { useStore } from '../context/StoreContext';
+import type { Product } from '../context/StoreContext';
 
 const categories = [
   {
     title: 'Thời Trang Nữ',
     subtitle: 'Hơn 450 mẫu thiết kế độc quyền',
     image: 'https://images.unsplash.com/photo-1483985988355-763728e1935b?w=600&auto=format&fit=crop&q=80',
-    link: '#',
+    link: '#featured',
   },
   {
     title: 'Thời Trang Nam',
     subtitle: 'Lịch lãm, hiện đại và chuẩn mực',
     image: 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?w=600&auto=format&fit=crop&q=80',
-    link: '#',
+    link: '#featured',
   },
   {
     title: 'Phụ Kiện Cao Cấp',
     subtitle: 'Túi da, thắt lưng & trang sức tối giản',
     image: 'https://images.unsplash.com/photo-1509319117193-57bab727e09d?w=600&auto=format&fit=crop&q=80',
-    link: '#',
+    link: '#featured',
   },
   {
     title: 'Giày & Boots',
     subtitle: 'Da thuộc thật 100% êm ái bền bỉ',
     image: 'https://images.unsplash.com/photo-1549298916-b41d501d3772?w=600&auto=format&fit=crop&q=80',
-    link: '#',
+    link: '#featured',
   },
 ];
 
 export const HomePage: React.FC = () => {
+  const { products, addToCart, setIsCartOpen } = useStore();
   const [health, setHealth] = useState<HealthCheckResponse | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [showDevPanel, setShowDevPanel] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  const handleAddToCart = (productName: string) => {
-    setToastMessage(`Đã thêm "${productName}" vào giỏ hàng thành công!`);
+  const handleAddToCart = (product: Product) => {
+    addToCart(product, 'L', 'Tiêu chuẩn', 1);
+    setIsCartOpen(true);
+    setToastMessage(`Đã thêm "${product.name}" vào giỏ hàng thành công!`);
     setTimeout(() => setToastMessage(null), 3000);
   };
 
@@ -307,7 +233,7 @@ export const HomePage: React.FC = () => {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-          {featuredProducts.map((p) => (
+          {products.filter(p => p.isActive).map((p) => (
             <div
               key={p.id}
               className="group bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs hover:shadow-xl transition-all duration-300 flex flex-col"
@@ -322,6 +248,16 @@ export const HomePage: React.FC = () => {
                 {p.tag && (
                   <span className="absolute top-3 left-3 px-2.5 py-1 rounded-full bg-slate-900/90 backdrop-blur text-white text-[11px] font-bold shadow-md">
                     {p.tag}
+                  </span>
+                )}
+                {p.stock <= 5 && p.stock > 0 && (
+                  <span className="absolute bottom-3 left-3 px-2 py-0.5 rounded bg-amber-500/90 text-white text-[10px] font-bold backdrop-blur">
+                    Chỉ còn {p.stock} chiếc
+                  </span>
+                )}
+                {p.stock === 0 && (
+                  <span className="absolute bottom-3 left-3 px-2 py-0.5 rounded bg-red-600/90 text-white text-[10px] font-bold backdrop-blur">
+                    Hết hàng
                   </span>
                 )}
                 <button
@@ -361,10 +297,12 @@ export const HomePage: React.FC = () => {
                   </div>
 
                   <button
-                    onClick={() => handleAddToCart(p.name)}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-indigo-600 text-white text-xs font-semibold shadow-sm transition"
+                    onClick={() => handleAddToCart(p)}
+                    disabled={p.stock === 0}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-indigo-600 disabled:bg-slate-300 text-white text-xs font-semibold shadow-sm transition"
                   >
-                    <ShoppingBag className="w-3.5 h-3.5" /> Thêm giỏ
+                    <ShoppingBag className="w-3.5 h-3.5" />
+                    {p.stock === 0 ? 'Tạm hết' : 'Thêm giỏ'}
                   </button>
                 </div>
               </div>
