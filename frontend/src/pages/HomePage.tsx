@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   ShoppingBag, 
   ArrowRight, 
@@ -13,16 +13,16 @@ import {
   AlertCircle, 
   Terminal, 
   ChevronDown, 
-  ChevronUp,
-  Flame,
-  Tag,
-  Search,
-  SlidersHorizontal,
-  Eye,
-  Zap,
-  X
+  ChevronUp, 
+  Flame, 
+  Tag, 
+  Search, 
+  SlidersHorizontal, 
+  Eye, 
+  Zap, 
+  X 
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams, useLocation } from 'react-router-dom';
 import { checkHealth } from '../services/api';
 import type { HealthCheckResponse } from '../types';
 import { useStore } from '../context/StoreContext';
@@ -51,17 +51,59 @@ const categoryImages: Record<string, { image: string; subtitle: string }> = {
 };
 
 export const HomePage: React.FC = () => {
-  const { products, categories, addToCart, setIsCartOpen, openCheckout } = useStore();
+  const { 
+    products, 
+    categories, 
+    addToCart, 
+    setIsCartOpen, 
+    openCheckout, 
+    selectedCategory, 
+    setSelectedCategory 
+  } = useStore();
+  const [searchParams] = useSearchParams();
+  const location = useLocation();
+
   const [health, setHealth] = useState<HealthCheckResponse | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [showDevPanel, setShowDevPanel] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // Category filter & Search & Sort state
-  const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
+  // Search & Sort state
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [sortBy, setSortBy] = useState<'featured' | 'price-asc' | 'price-desc' | 'rating'>('featured');
+
+  // Sync category & section scroll from URL query params or hash
+  useEffect(() => {
+    const catQuery = searchParams.get('category');
+    if (catQuery) {
+      const decoded = decodeURIComponent(catQuery).trim();
+      const matched = categories.find(
+        (c) =>
+          c.slug.toLowerCase() === decoded.toLowerCase() ||
+          c.name.toLowerCase() === decoded.toLowerCase()
+      );
+      if (matched) {
+        setSelectedCategory(matched.name);
+      } else {
+        setSelectedCategory(decoded);
+      }
+      setTimeout(() => {
+        const el = document.getElementById('featured');
+        if (el) el.scrollIntoView({ behavior: 'smooth' });
+      }, 150);
+    } else if (location.hash === '#collections') {
+      setTimeout(() => {
+        const el = document.getElementById('collections');
+        if (el) el.scrollIntoView({ behavior: 'smooth' });
+      }, 150);
+    } else if (location.hash === '#featured') {
+      setTimeout(() => {
+        const el = document.getElementById('featured');
+        if (el) el.scrollIntoView({ behavior: 'smooth' });
+      }, 150);
+    }
+  }, [searchParams, location.hash, categories, setSelectedCategory]);
 
   // Modal states
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -240,10 +282,10 @@ export const HomePage: React.FC = () => {
       </section>
 
       {/* Dynamic Categories Section from Database */}
-      <section className="space-y-6">
+      <section id="collections" className="space-y-6 scroll-mt-24">
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2">
           <div>
-            <span className="text-xs font-bold tracking-widest text-indigo-600 uppercase">Danh mục thịnh hành từ Database</span>
+            <span className="text-xs font-bold tracking-widest text-indigo-600 uppercase">Bộ Sưu Tập & Danh Mục Phong Cách</span>
             <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight mt-1">
               Khám Phá Theo Nhóm Phong Cách
             </h2>

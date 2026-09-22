@@ -84,6 +84,8 @@ interface StoreContextType {
   isCheckoutOpen: boolean;
   checkoutItems: CartItem[] | null;
   isLoading: boolean;
+  selectedCategory: string;
+  setSelectedCategory: (category: string) => void;
   setIsCartOpen: (open: boolean) => void;
   openCheckout: (items?: CartItem[]) => void;
   closeCheckout: () => void;
@@ -123,6 +125,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [orders, setOrders] = useState<Order[]>([]);
   const [users, setUsers] = useState<UserAccount[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
 
   // Cart persists in localStorage for buyer convenience
   const [cart, setCart] = useState<CartItem[]>(() => {
@@ -430,6 +433,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         isCheckoutOpen,
         checkoutItems,
         isLoading,
+        selectedCategory,
+        setSelectedCategory,
         setIsCartOpen,
         openCheckout,
         closeCheckout,

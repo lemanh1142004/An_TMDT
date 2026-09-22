@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { 
   ShoppingBag, 
@@ -8,7 +8,8 @@ import {
   LogOut, 
   LogIn, 
   UserPlus, 
-  Sparkles
+  Sparkles,
+  ChevronDown
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useStore } from '../context/StoreContext';
@@ -17,13 +18,69 @@ import { CheckoutModal } from '../components/CheckoutModal';
 
 export const RootLayout: React.FC = () => {
   const { user, isAuthenticated, logout } = useAuth();
-  const { cart, setIsCartOpen } = useStore();
+  const { 
+    cart, 
+    setIsCartOpen, 
+    selectedCategory, 
+    setSelectedCategory, 
+    categories, 
+    products 
+  } = useStore();
   const navigate = useNavigate();
   const location = useLocation();
+
+  const [isCollectionsDropdownOpen, setIsCollectionsDropdownOpen] = useState(false);
 
   const handleLogout = async () => {
     await logout();
     navigate('/login');
+  };
+
+  // Active status detection
+  const isHomeActive = location.pathname === '/' && selectedCategory === 'ALL' && location.hash !== '#collections';
+  const isCollectionsActive = location.pathname === '/' && location.hash === '#collections';
+  const isWomenActive = location.pathname === '/' && selectedCategory === 'Thời trang Nữ';
+  const isMenActive = location.pathname === '/' && selectedCategory === 'Thời trang Nam';
+
+  // Navigation handlers
+  const handleGoHome = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setSelectedCategory('ALL');
+    if (location.pathname === '/') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+      navigate('/');
+    }
+  };
+
+  const handleGoCollections = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setSelectedCategory('ALL');
+    setIsCollectionsDropdownOpen(false);
+    if (location.pathname === '/') {
+      const el = document.getElementById('collections');
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth' });
+      } else {
+        navigate('/#collections');
+      }
+    } else {
+      navigate('/#collections');
+    }
+  };
+
+  const handleGoCategory = (e: React.MouseEvent, catName: string, slug: string) => {
+    e.preventDefault();
+    setSelectedCategory(catName);
+    setIsCollectionsDropdownOpen(false);
+    if (location.pathname === '/') {
+      const el = document.getElementById('featured');
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth' });
+      }
+    } else {
+      navigate(`/?category=${slug}#featured`);
+    }
   };
 
   // Strict role detection (Admin, Staff, Customer are mutually separated)
@@ -44,7 +101,7 @@ export const RootLayout: React.FC = () => {
       <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2 text-xl font-extrabold tracking-tight text-slate-900 group">
+          <Link to="/" onClick={handleGoHome} className="flex items-center gap-2 text-xl font-extrabold tracking-tight text-slate-900 group">
             <div className="w-9 h-9 rounded-xl bg-slate-950 text-white flex items-center justify-center group-hover:bg-indigo-600 transition">
               <ShoppingBag className="w-5 h-5" />
             </div>
@@ -54,23 +111,97 @@ export const RootLayout: React.FC = () => {
             </div>
           </Link>
 
-          {/* Center Navigation */}
-          <nav className="hidden md:flex items-center gap-6 text-sm font-semibold text-slate-600">
-            <Link
-              to="/"
-              className={`hover:text-indigo-600 transition ${location.pathname === '/' ? 'text-indigo-600 font-bold' : ''}`}
+          {/* Center Navigation with Active Filtering */}
+          <nav className="hidden md:flex items-center gap-1 lg:gap-2 text-sm font-semibold">
+            {/* 1. Trang chủ */}
+            <button
+              onClick={handleGoHome}
+              className={`px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 cursor-pointer ${
+                isHomeActive
+                  ? 'bg-indigo-50 text-indigo-600 font-bold shadow-xs'
+                  : 'text-slate-600 hover:text-indigo-600 hover:bg-slate-100'
+              }`}
             >
               Trang chủ
-            </Link>
-            <a href="/#featured" className="hover:text-indigo-600 transition">
-              Bộ sưu tập
-            </a>
-            <a href="/#featured" className="hover:text-indigo-600 transition">
-              Thời trang Nữ
-            </a>
-            <a href="/#featured" className="hover:text-indigo-600 transition">
-              Thời trang Nam
-            </a>
+            </button>
+
+            {/* 2. Bộ sưu tập (Click scrolls to collections, hover shows dropdown) */}
+            <div 
+              className="relative"
+              onMouseEnter={() => setIsCollectionsDropdownOpen(true)}
+              onMouseLeave={() => setIsCollectionsDropdownOpen(false)}
+            >
+              <button
+                onClick={handleGoCollections}
+                className={`px-3.5 py-2 rounded-xl transition flex items-center gap-1 cursor-pointer ${
+                  isCollectionsActive
+                    ? 'bg-indigo-50 text-indigo-600 font-bold shadow-xs'
+                    : 'text-slate-600 hover:text-indigo-600 hover:bg-slate-100'
+                }`}
+              >
+                <span>Bộ sưu tập</span>
+                <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${isCollectionsDropdownOpen ? 'rotate-180 text-indigo-600' : 'text-slate-400'}`} />
+              </button>
+
+              {/* Collections Dropdown */}
+              {isCollectionsDropdownOpen && (
+                <div className="absolute top-full left-0 mt-1 w-64 bg-white rounded-2xl shadow-xl border border-slate-200 p-2 z-50 animate-fadeIn">
+                  <div className="px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-slate-400 border-b border-slate-100">
+                    Danh mục bộ sưu tập
+                  </div>
+                  <button
+                    onClick={handleGoCollections}
+                    className="w-full text-left px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 transition flex items-center justify-between cursor-pointer"
+                  >
+                    <span>Khám phá toàn bộ nhóm ({products.length} mẫu)</span>
+                    <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
+                  </button>
+                  {categories.map((c) => {
+                    const count = products.filter(p => p.category === c.name).length;
+                    return (
+                      <button
+                        key={c.id}
+                        onClick={(e) => handleGoCategory(e, c.name, c.slug)}
+                        className={`w-full text-left px-3 py-2 rounded-xl text-xs font-medium transition flex items-center justify-between cursor-pointer ${
+                          selectedCategory === c.name
+                            ? 'bg-indigo-50 text-indigo-600 font-bold'
+                            : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                        }`}
+                      >
+                        <span>{c.name}</span>
+                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-500 font-mono">
+                          {count}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* 3. Thời trang Nữ */}
+            <button
+              onClick={(e) => handleGoCategory(e, 'Thời trang Nữ', 'thoi-trang-nu')}
+              className={`px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 cursor-pointer ${
+                isWomenActive
+                  ? 'bg-indigo-50 text-indigo-600 font-bold shadow-xs'
+                  : 'text-slate-600 hover:text-indigo-600 hover:bg-slate-100'
+              }`}
+            >
+              <span>Thời trang Nữ</span>
+            </button>
+
+            {/* 4. Thời trang Nam */}
+            <button
+              onClick={(e) => handleGoCategory(e, 'Thời trang Nam', 'thoi-trang-nam')}
+              className={`px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 cursor-pointer ${
+                isMenActive
+                  ? 'bg-indigo-50 text-indigo-600 font-bold shadow-xs'
+                  : 'text-slate-600 hover:text-indigo-600 hover:bg-slate-100'
+              }`}
+            >
+              <span>Thời trang Nam</span>
+            </button>
           </nav>
 
           {/* Right Action Buttons */}
@@ -176,6 +307,42 @@ export const RootLayout: React.FC = () => {
               </div>
             )}
           </div>
+        </div>
+
+        {/* Mobile / Tablet Horizontal Category Subnav */}
+        <div className="md:hidden flex items-center gap-1.5 overflow-x-auto py-2 px-4 border-t border-slate-100 bg-white/95 scrollbar-none text-xs font-semibold">
+          <button
+            onClick={handleGoHome}
+            className={`px-3 py-1.5 rounded-lg flex-shrink-0 transition cursor-pointer ${
+              isHomeActive ? 'bg-indigo-600 text-white font-bold' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+            }`}
+          >
+            Trang chủ
+          </button>
+          <button
+            onClick={handleGoCollections}
+            className={`px-3 py-1.5 rounded-lg flex-shrink-0 transition cursor-pointer ${
+              isCollectionsActive ? 'bg-indigo-600 text-white font-bold' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+            }`}
+          >
+            Bộ sưu tập
+          </button>
+          <button
+            onClick={(e) => handleGoCategory(e, 'Thời trang Nữ', 'thoi-trang-nu')}
+            className={`px-3 py-1.5 rounded-lg flex-shrink-0 transition cursor-pointer ${
+              isWomenActive ? 'bg-indigo-600 text-white font-bold' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+            }`}
+          >
+            Thời trang Nữ
+          </button>
+          <button
+            onClick={(e) => handleGoCategory(e, 'Thời trang Nam', 'thoi-trang-nam')}
+            className={`px-3 py-1.5 rounded-lg flex-shrink-0 transition cursor-pointer ${
+              isMenActive ? 'bg-indigo-600 text-white font-bold' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+            }`}
+          >
+            Thời trang Nam
+          </button>
         </div>
       </header>
 
