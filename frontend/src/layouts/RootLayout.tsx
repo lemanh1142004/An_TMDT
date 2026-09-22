@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { 
   ShoppingBag, 
@@ -18,7 +18,6 @@ import { CheckoutModal } from '../components/CheckoutModal';
 export const RootLayout: React.FC = () => {
   const { user, isAuthenticated, logout } = useAuth();
   const { cart, setIsCartOpen } = useStore();
-  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -181,10 +180,10 @@ export const RootLayout: React.FC = () => {
       </header>
 
       {/* Cart Drawer */}
-      <CartDrawer onOpenCheckout={() => setIsCheckoutOpen(true)} />
+      <CartDrawer />
 
       {/* Checkout Modal */}
-      <CheckoutModal isOpen={isCheckoutOpen} onClose={() => setIsCheckoutOpen(false)} />
+      <CheckoutModal />
 
       {/* Page Body */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">

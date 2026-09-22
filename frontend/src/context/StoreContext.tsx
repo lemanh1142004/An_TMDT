@@ -79,8 +79,12 @@ interface StoreContextType {
   orders: Order[];
   users: UserAccount[];
   isCartOpen: boolean;
+  isCheckoutOpen: boolean;
+  checkoutItems: CartItem[] | null;
   isLoading: boolean;
   setIsCartOpen: (open: boolean) => void;
+  openCheckout: (items?: CartItem[]) => void;
+  closeCheckout: () => void;
   // Cart operations
   addToCart: (product: Product, size?: string, color?: string, quantity?: number) => void;
   updateCartQty: (index: number, newQty: number) => void;
@@ -117,6 +121,18 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   });
 
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+  const [checkoutItems, setCheckoutItems] = useState<CartItem[] | null>(null);
+
+  const openCheckout = (items?: CartItem[]) => {
+    setCheckoutItems(items && items.length > 0 ? items : null);
+    setIsCheckoutOpen(true);
+  };
+
+  const closeCheckout = () => {
+    setIsCheckoutOpen(false);
+    setCheckoutItems(null);
+  };
 
   useEffect(() => {
     localStorage.setItem('fs_cart', JSON.stringify(cart));
@@ -217,7 +233,30 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     paymentMethod: 'COD' | 'VNPAY' | 'Chuyển khoản';
     discountCode?: string;
     note?: string;
+    items?: {
+      productId: number;
+      size?: string;
+      color?: string;
+      quantity: number;
+    }[];
   }): Promise<Order> => {
+    // If specific items were passed or set in checkoutItems, use them; otherwise use full cart
+    const orderItems = orderData.items && orderData.items.length > 0
+      ? orderData.items
+      : (checkoutItems && checkoutItems.length > 0
+          ? checkoutItems.map((item) => ({
+              productId: item.product.id,
+              size: item.size,
+              color: item.color,
+              quantity: item.quantity,
+            }))
+          : cart.map((item) => ({
+              productId: item.product.id,
+              size: item.size,
+              color: item.color,
+              quantity: item.quantity,
+            })));
+
     const payload = {
       customerName: orderData.customerName,
       customerEmail: orderData.customerEmail,
@@ -226,17 +265,25 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       paymentMethod: orderData.paymentMethod,
       discountCode: orderData.discountCode,
       note: orderData.note,
-      items: cart.map((item) => ({
-        productId: item.product.id,
-        size: item.size,
-        color: item.color,
-        quantity: item.quantity,
-      })),
+      items: orderItems,
     };
 
     try {
       const created = await orderService.createOrder(payload);
-      clearCart();
+      
+      // Remove ONLY the purchased items from cart
+      setCart((prev) =>
+        prev.filter(
+          (cartItem) =>
+            !orderItems.some(
+              (purchased) =>
+                purchased.productId === cartItem.product.id &&
+                (purchased.size ? purchased.size === cartItem.size : true) &&
+                (purchased.color ? purchased.color === cartItem.color : true)
+            )
+        )
+      );
+
       // Refresh products (stock was deducted) and orders from DB
       await Promise.all([fetchProducts(), fetchOrders()]);
       return created;
@@ -337,8 +384,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         orders,
         users,
         isCartOpen,
+        isCheckoutOpen,
+        checkoutItems,
         isLoading,
         setIsCartOpen,
+        openCheckout,
+        closeCheckout,
         addToCart,
         updateCartQty,
         removeFromCart,

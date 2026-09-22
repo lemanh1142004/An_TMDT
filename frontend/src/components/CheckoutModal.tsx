@@ -1,19 +1,30 @@
 import React, { useState } from 'react';
-import { X, CheckCircle, Tag, Truck, CreditCard, Banknote, ShieldCheck } from 'lucide-react';
+import { X, CheckCircle, Tag, Truck, CreditCard, Banknote, ShieldCheck, Package } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
-import type { Order } from '../context/StoreContext';
+import type { Order, CartItem } from '../context/StoreContext';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
 interface CheckoutModalProps {
-  isOpen: boolean;
-  onClose: () => void;
+  isOpen?: boolean;
+  onClose?: () => void;
+  itemsToCheckout?: CartItem[];
 }
 
-export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose }) => {
-  const { cart, createOrder } = useStore();
+export const CheckoutModal: React.FC<CheckoutModalProps> = ({ 
+  isOpen: propIsOpen, 
+  onClose: propOnClose, 
+  itemsToCheckout: propItems 
+}) => {
+  const { cart, createOrder, isCheckoutOpen, closeCheckout, checkoutItems } = useStore();
   const { user } = useAuth();
   const navigate = useNavigate();
+
+  const isOpen = propIsOpen !== undefined ? propIsOpen : isCheckoutOpen;
+  const onClose = propOnClose || closeCheckout;
+  const activeItems = (propItems && propItems.length > 0)
+    ? propItems
+    : (checkoutItems && checkoutItems.length > 0 ? checkoutItems : cart);
 
   const [customerName, setCustomerName] = useState(user?.fullName || 'Trần Thị Khách Hàng');
   const [phone, setPhone] = useState(user?.phoneNumber || '0903 456 789');
@@ -27,7 +38,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
 
   if (!isOpen) return null;
 
-  const subtotal = cart.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
+  const subtotal = activeItems.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
 
   // Voucher calculation
   let discount = 0;
@@ -67,6 +78,12 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
         paymentMethod,
         discountCode: appliedVoucher || undefined,
         note,
+        items: activeItems.map((item) => ({
+          productId: item.product.id,
+          size: item.size,
+          color: item.color,
+          quantity: item.quantity,
+        })),
       });
       setCreatedOrder(order);
     } catch (err: any) {
@@ -156,6 +173,48 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
             </div>
 
             <form onSubmit={handleConfirmOrder} className="space-y-4 pt-4">
+              {/* Selective Checkout Banner if purchasing partial items */}
+              {activeItems.length < cart.length && (
+                <div className="p-3 bg-indigo-50/80 border border-indigo-200 rounded-xl text-xs text-indigo-900 flex items-center justify-between animate-fadeIn">
+                  <div className="flex items-center gap-2">
+                    <Package className="w-4 h-4 text-indigo-600 flex-shrink-0" />
+                    <span>Thanh toán riêng <strong>{activeItems.length} sản phẩm</strong></span>
+                  </div>
+                  <span className="text-[10px] bg-indigo-200/70 text-indigo-800 px-2 py-0.5 rounded-full font-semibold">
+                    {cart.length - activeItems.length} món khác còn lưu trong giỏ
+                  </span>
+                </div>
+              )}
+
+              {/* Items preview preview strip */}
+              <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 space-y-2">
+                <span className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider">
+                  Sản phẩm thanh toán ({activeItems.length})
+                </span>
+                <div className="max-h-36 overflow-y-auto space-y-2 divide-y divide-slate-100 pr-1">
+                  {activeItems.map((it, i) => (
+                    <div key={i} className="flex items-center justify-between gap-3 pt-1.5 first:pt-0">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <img 
+                          src={it.product.image} 
+                          alt={it.product.name} 
+                          className="w-9 h-11 object-cover rounded-lg bg-slate-200 flex-shrink-0" 
+                        />
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold text-slate-900 truncate">{it.product.name}</p>
+                          <p className="text-[11px] text-slate-500">
+                            Size: <span className="font-semibold text-slate-700">{it.size}</span> | Màu: <span className="font-semibold text-slate-700">{it.color}</span> x {it.quantity}
+                          </p>
+                        </div>
+                      </div>
+                      <span className="text-xs font-bold text-indigo-600 flex-shrink-0">
+                        {(it.product.price * it.quantity).toLocaleString('vi-VN')} ₫
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
               {/* Recipient info */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
@@ -339,7 +398,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
               {/* Price summary */}
               <div className="bg-slate-50 p-4 rounded-xl space-y-1.5 border border-slate-100 text-xs">
                 <div className="flex justify-between text-slate-600">
-                  <span>Tạm tính ({cart.length} món):</span>
+                  <span>Tạm tính ({activeItems.length} món):</span>
                   <span>{subtotal.toLocaleString('vi-VN')} ₫</span>
                 </div>
                 {discount > 0 && (

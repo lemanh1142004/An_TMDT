@@ -28,7 +28,6 @@ import type { HealthCheckResponse } from '../types';
 import { useStore } from '../context/StoreContext';
 import type { Product } from '../context/StoreContext';
 import { ProductDetailModal } from '../components/ProductDetailModal';
-import { CheckoutModal } from '../components/CheckoutModal';
 import { getProductImage, handleImageError } from '../utils/imageUtils';
 
 // Fallback images for dynamic categories if not provided
@@ -52,7 +51,7 @@ const categoryImages: Record<string, { image: string; subtitle: string }> = {
 };
 
 export const HomePage: React.FC = () => {
-  const { products, categories, addToCart, setIsCartOpen } = useStore();
+  const { products, categories, addToCart, setIsCartOpen, openCheckout } = useStore();
   const [health, setHealth] = useState<HealthCheckResponse | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -67,7 +66,6 @@ export const HomePage: React.FC = () => {
   // Modal states
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState<boolean>(false);
-  const [isCheckoutOpen, setIsCheckoutOpen] = useState<boolean>(false);
 
   const handleOpenDetail = (product: Product) => {
     setSelectedProduct(product);
@@ -75,9 +73,8 @@ export const HomePage: React.FC = () => {
   };
 
   const handleBuyNow = (product: Product, size: string, color: string, quantity: number) => {
-    addToCart(product, size, color, quantity);
     setIsDetailOpen(false);
-    setIsCheckoutOpen(true);
+    openCheckout([{ product, size, color, quantity }]);
   };
 
   const handleQuickAdd = (product: Product) => {
@@ -152,12 +149,6 @@ export const HomePage: React.FC = () => {
         isOpen={isDetailOpen}
         onClose={() => setIsDetailOpen(false)}
         onBuyNow={handleBuyNow}
-      />
-
-      {/* Direct Checkout Modal from Buy Now */}
-      <CheckoutModal
-        isOpen={isCheckoutOpen}
-        onClose={() => setIsCheckoutOpen(false)}
       />
 
       {/* Hero Banner */}
