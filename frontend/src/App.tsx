@@ -13,13 +13,15 @@ import { CustomerDashboard } from './pages/customer/CustomerDashboard';
 import { UnauthorizedPage } from './components/UnauthorizedPage';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { RoleRoute } from './components/RoleRoute';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 export const App: React.FC = () => {
   return (
-    <AuthProvider>
-      <StoreProvider>
-        <BrowserRouter>
-          <Routes>
+    <ErrorBoundary>
+      <AuthProvider>
+        <StoreProvider>
+          <BrowserRouter>
+            <Routes>
             <Route path="/" element={<RootLayout />}>
               <Route index element={<HomePage />} />
               <Route path="login" element={<LoginPage />} />
@@ -68,6 +70,7 @@ export const App: React.FC = () => {
         </BrowserRouter>
       </StoreProvider>
     </AuthProvider>
+  </ErrorBoundary>
   );
 };
 

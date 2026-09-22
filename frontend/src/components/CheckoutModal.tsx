@@ -23,10 +23,13 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
   const isOpen = propIsOpen !== undefined ? propIsOpen : isCheckoutOpen;
   const onClose = propOnClose || closeCheckout;
-  const activeItems = (propItems && propItems.length > 0)
+
+  const rawItems = (propItems && propItems.length > 0)
     ? propItems
     : (checkoutItems && checkoutItems.length > 0 ? checkoutItems : cart);
+  const activeItems = (rawItems || []).filter((item) => item && item.product && typeof item.product.price === 'number');
 
+  // ALL hooks must be called unconditionally at top level
   const [customerName, setCustomerName] = useState(user?.fullName || 'Trần Thị Khách Hàng');
   const [phone, setPhone] = useState(user?.phoneNumber || '0903 456 789');
   const [address, setAddress] = useState('Số 45, Đường Lê Lợi, P. Bến Nghé, Quận 1, TP. HCM');
@@ -37,10 +40,12 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const [voucherError, setVoucherError] = useState<string | null>(null);
   const [note, setNote] = useState('');
   const [createdOrder, setCreatedOrder] = useState<Order | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
-  const subtotal = activeItems.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
+  const subtotal = activeItems.reduce((sum, item) => sum + (item.product?.price || 0) * (item.quantity || 1), 0);
 
   // Voucher calculation
   let discount = 0;
@@ -64,9 +69,6 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     }
   };
 
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState<string | null>(null);
-
   const handleConfirmOrder = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -81,10 +83,10 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         discountCode: appliedVoucher || undefined,
         note,
         items: activeItems.map((item) => ({
-          productId: item.product.id,
-          size: item.size,
-          color: item.color,
-          quantity: item.quantity,
+          productId: item.product?.id,
+          size: item.size || 'L',
+          color: item.color || 'Tiêu chuẩn',
+          quantity: item.quantity || 1,
         })),
       });
       setCreatedOrder(order);
@@ -247,19 +249,19 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                     <div key={i} className="flex items-center justify-between gap-3 pt-1.5 first:pt-0">
                       <div className="flex items-center gap-2.5 min-w-0">
                         <img 
-                          src={it.product.image} 
-                          alt={it.product.name} 
+                          src={it.product?.image || ''} 
+                          alt={it.product?.name || 'Sản phẩm'} 
                           className="w-9 h-11 object-cover rounded-lg bg-slate-200 flex-shrink-0" 
                         />
                         <div className="min-w-0">
-                          <p className="text-xs font-bold text-slate-900 truncate">{it.product.name}</p>
+                          <p className="text-xs font-bold text-slate-900 truncate">{it.product?.name || 'Sản phẩm'}</p>
                           <p className="text-[11px] text-slate-500">
-                            Size: <span className="font-semibold text-slate-700">{it.size}</span> | Màu: <span className="font-semibold text-slate-700">{it.color}</span> x {it.quantity}
+                            Size: <span className="font-semibold text-slate-700">{it.size || 'L'}</span> | Màu: <span className="font-semibold text-slate-700">{it.color || 'Tiêu chuẩn'}</span> x {it.quantity || 1}
                           </p>
                         </div>
                       </div>
                       <span className="text-xs font-bold text-indigo-600 flex-shrink-0">
-                        {(it.product.price * it.quantity).toLocaleString('vi-VN')} ₫
+                        {((it.product?.price || 0) * (it.quantity || 1)).toLocaleString('vi-VN')} ₫
                       </span>
                     </div>
                   ))}

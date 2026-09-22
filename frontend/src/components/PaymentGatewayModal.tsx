@@ -177,8 +177,8 @@ export const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
   };
 
   // VietQR URL
-  const vietQrAmount = order.total;
-  const vietQrInfo = `FS ${order.id}`;
+  const vietQrAmount = order?.total || 0;
+  const vietQrInfo = `FS ${order?.id || ''}`;
   const vietQrImageUrl = `https://img.vietqr.io/image/VCB-102839482901-compact2.png?amount=${vietQrAmount}&addInfo=${encodeURIComponent(vietQrInfo)}&accountName=CTY%20CP%20THOI%20TRANG%20FASHION%20STORE`;
 
   return (
@@ -261,13 +261,13 @@ export const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
                 <div className="pt-3 border-t border-slate-200">
                   <span className="block font-bold text-slate-800 text-xs mb-2">Chi tiết sản phẩm đã mua:</span>
                   <div className="space-y-1.5 bg-white p-3 rounded-xl border border-slate-200/80">
-                    {paidOrder.items.map((it, idx) => (
+                    {(paidOrder.items || []).map((it, idx) => (
                       <div key={idx} className="flex justify-between items-center text-xs">
                         <span className="text-slate-700 font-medium">
-                          • {it.name} ({it.color}, {it.size}) x<strong>{it.quantity}</strong>
+                          • {it.name || 'Sản phẩm'} ({it.color || 'Tiêu chuẩn'}, {it.size || 'L'}) x<strong>{it.quantity || 1}</strong>
                         </span>
                         <span className="font-semibold text-slate-900">
-                          {(it.price * it.quantity).toLocaleString('vi-VN')} ₫
+                          {((it.price || 0) * (it.quantity || 1)).toLocaleString('vi-VN')} ₫
                         </span>
                       </div>
                     ))}
@@ -277,19 +277,19 @@ export const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
                 {/* Summary total */}
                 <div className="pt-3 border-t border-slate-200 space-y-1 text-right">
                   <div className="text-xs text-slate-500">
-                    Tạm tính: {paidOrder.subtotal.toLocaleString('vi-VN')} ₫
+                    Tạm tính: {(paidOrder.subtotal || 0).toLocaleString('vi-VN')} ₫
                   </div>
-                  {paidOrder.discount > 0 && (
+                  {(paidOrder.discount || 0) > 0 && (
                     <div className="text-xs text-emerald-600 font-semibold">
-                      Giảm giá voucher: -{paidOrder.discount.toLocaleString('vi-VN')} ₫
+                      Giảm giá voucher: -{(paidOrder.discount || 0).toLocaleString('vi-VN')} ₫
                     </div>
                   )}
                   <div className="text-xs text-slate-500">
-                    Phí vận chuyển: {paidOrder.shippingFee === 0 ? 'Miễn phí' : `${paidOrder.shippingFee.toLocaleString('vi-VN')} ₫`}
+                    Phí vận chuyển: {(paidOrder.shippingFee || 0) === 0 ? 'Miễn phí' : `${(paidOrder.shippingFee || 0).toLocaleString('vi-VN')} ₫`}
                   </div>
                   <div className="text-base font-black text-slate-900 pt-1 flex justify-between items-center">
                     <span className="text-sm font-bold text-slate-700">Tổng tiền đã thanh toán:</span>
-                    <span className="text-indigo-600 text-lg font-black">{paidOrder.total.toLocaleString('vi-VN')} ₫</span>
+                    <span className="text-indigo-600 text-lg font-black">{(paidOrder.total || 0).toLocaleString('vi-VN')} ₫</span>
                   </div>
                 </div>
               </div>

@@ -40,7 +40,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ onOpenCheckout }) => {
   // Selected items subset
   const selectedItems = cart.filter((_, idx) => selectedIndices.includes(idx));
   const selectedSubtotal = selectedItems.reduce(
-    (sum, item) => sum + item.product.price * item.quantity,
+    (sum, item) => sum + (item.product?.price || 0) * (item.quantity || 1),
     0
   );
 
@@ -246,7 +246,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ onOpenCheckout }) => {
                         className="w-full py-1.5 px-3 rounded-xl bg-indigo-50 hover:bg-indigo-600 text-indigo-700 hover:text-white text-xs font-bold transition flex items-center justify-center gap-1.5 group/single"
                       >
                         <CreditCard className="w-3.5 h-3.5 text-indigo-600 group-hover/single:text-white transition" />
-                        <span>Thanh toán riêng món này ({(item.product.price * item.quantity).toLocaleString('vi-VN')} ₫)</span>
+                        <span>Thanh toán riêng món này ({((item.product?.price || 0) * (item.quantity || 1)).toLocaleString('vi-VN')} ₫)</span>
                       </button>
                     </div>
                   </div>

@@ -126,8 +126,17 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // Cart persists in localStorage for buyer convenience
   const [cart, setCart] = useState<CartItem[]>(() => {
-    const saved = localStorage.getItem('fs_cart');
-    return saved ? JSON.parse(saved) : [];
+    try {
+      const saved = localStorage.getItem('fs_cart');
+      if (!saved) return [];
+      const parsed = JSON.parse(saved);
+      if (!Array.isArray(parsed)) return [];
+      return parsed.filter(
+        (item: any) => item && item.product && typeof item.product.price === 'number'
+      );
+    } catch {
+      return [];
+    }
   });
 
   const [isCartOpen, setIsCartOpen] = useState(false);
@@ -287,7 +296,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           (cartItem) =>
             !orderItems.some(
               (purchased) =>
-                purchased.productId === cartItem.product.id &&
+                purchased.productId === cartItem?.product?.id &&
                 (purchased.size ? purchased.size === cartItem.size : true) &&
                 (purchased.color ? purchased.color === cartItem.color : true)
             )
