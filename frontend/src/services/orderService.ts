@@ -29,6 +29,17 @@ export interface ConfirmPaymentPayload {
   bankName?: string;
 }
 
+import type { PageResponse } from './productService';
+
+export interface GetOrdersPageParams {
+  page?: number;
+  size?: number;
+  status?: string;
+  search?: string;
+  sortBy?: string;
+  sortDir?: 'asc' | 'desc';
+}
+
 export const orderService = {
   createOrder: async (payload: CreateOrderPayload): Promise<Order> => {
     // Map payment method to enum
@@ -61,6 +72,16 @@ export const orderService = {
   getAllOrders: async (): Promise<Order[]> => {
     const response = await api.get<any[]>('/api/orders');
     return response.data.map(mapBackendOrder);
+  },
+
+  getPaginated: async (params?: GetOrdersPageParams): Promise<PageResponse<Order>> => {
+    const response = await api.get<PageResponse<any>>('/api/orders/page', {
+      params,
+    });
+    return {
+      ...response.data,
+      content: (response.data.content || []).map(mapBackendOrder),
+    };
   },
 
   updateStatus: async (orderId: number | string, payload: UpdateOrderStatusPayload): Promise<Order> => {

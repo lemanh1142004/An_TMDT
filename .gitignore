@@ -58,3 +58,11 @@ logs/
 # Docker
 docker-data/
 postgres_data/
+
+# Uploaded Files
+backend/uploads/**
+!backend/uploads/.gitkeep
+
+# Scratch Verification Scripts
+test_*.cjs
+verify_*.cjs

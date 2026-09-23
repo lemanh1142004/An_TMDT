@@ -1,5 +1,6 @@
 package com.fashionstore.backend.modules.product.service.impl;
 
+import com.fashionstore.backend.common.dto.PageResponse;
 import com.fashionstore.backend.common.exception.AppException;
 import com.fashionstore.backend.modules.product.dto.CategoryDto;
 import com.fashionstore.backend.modules.product.dto.CreateCategoryRequest;
@@ -12,6 +13,10 @@ import com.fashionstore.backend.modules.product.repository.ProductRepository;
 import com.fashionstore.backend.modules.product.service.ProductService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,6 +38,31 @@ public class ProductServiceImpl implements ProductService {
                 ? productRepository.findByActiveTrueOrderByCreatedAtDesc()
                 : productRepository.findAllByOrderByCreatedAtDesc();
         return products.stream().map(this::mapToDto).toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<ProductDto> getProductsPaginated(int page, int size, Long categoryId, boolean onlyActive, String search, String sortBy, String sortDir) {
+        if (page < 0) page = 0;
+        if (size <= 0) size = 10;
+        if (size > 100) size = 100;
+
+        Sort.Direction direction = "asc".equalsIgnoreCase(sortDir) ? Sort.Direction.ASC : Sort.Direction.DESC;
+        String property = (sortBy != null && !sortBy.isBlank()) ? sortBy : "createdAt";
+        Pageable pageable = PageRequest.of(page, size, Sort.by(direction, property));
+
+        Page<Product> productPage = productRepository.searchProducts(categoryId, onlyActive, search, pageable);
+        List<ProductDto> dtoList = productPage.getContent().stream().map(this::mapToDto).toList();
+
+        return PageResponse.<ProductDto>builder()
+                .content(dtoList)
+                .pageNumber(productPage.getNumber())
+                .pageSize(productPage.getSize())
+                .totalElements(productPage.getTotalElements())
+                .totalPages(productPage.getTotalPages())
+                .first(productPage.isFirst())
+                .last(productPage.isLast())
+                .build();
     }
 
     @Override

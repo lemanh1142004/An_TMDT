@@ -1,5 +1,6 @@
 package com.fashionstore.backend.modules.order.controller;
 
+import com.fashionstore.backend.common.dto.PageResponse;
 import com.fashionstore.backend.common.exception.AppException;
 import com.fashionstore.backend.modules.order.dto.ConfirmPaymentRequest;
 import com.fashionstore.backend.modules.order.dto.CreateOrderRequest;
@@ -55,6 +56,19 @@ public class OrderController {
     @PreAuthorize("hasAnyAuthority('ROLE_STAFF', 'ROLE_ADMIN')")
     public ResponseEntity<List<OrderDto>> getAllOrders() {
         return ResponseEntity.ok(orderService.getAllOrders());
+    }
+
+    @GetMapping("/page")
+    @PreAuthorize("hasAnyAuthority('ROLE_STAFF', 'ROLE_ADMIN')")
+    public ResponseEntity<PageResponse<OrderDto>> getOrdersPaginated(
+            @RequestParam(name = "page", defaultValue = "0") int page,
+            @RequestParam(name = "size", defaultValue = "10") int size,
+            @RequestParam(name = "status", required = false) String status,
+            @RequestParam(name = "search", required = false) String search,
+            @RequestParam(name = "sortBy", defaultValue = "createdAt") String sortBy,
+            @RequestParam(name = "sortDir", defaultValue = "desc") String sortDir
+    ) {
+        return ResponseEntity.ok(orderService.getOrdersPaginated(page, size, status, search, sortBy, sortDir));
     }
 
     @GetMapping("/{id}")

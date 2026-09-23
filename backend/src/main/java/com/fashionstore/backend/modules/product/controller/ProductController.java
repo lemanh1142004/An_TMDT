@@ -1,5 +1,6 @@
 package com.fashionstore.backend.modules.product.controller;
 
+import com.fashionstore.backend.common.dto.PageResponse;
 import com.fashionstore.backend.modules.product.dto.CreateProductRequest;
 import com.fashionstore.backend.modules.product.dto.ProductDto;
 import com.fashionstore.backend.modules.product.dto.UpdateStockRequest;
@@ -25,6 +26,19 @@ public class ProductController {
             @RequestParam(name = "onlyActive", defaultValue = "false") boolean onlyActive
     ) {
         return ResponseEntity.ok(productService.getAllProducts(onlyActive));
+    }
+
+    @GetMapping("/page")
+    public ResponseEntity<PageResponse<ProductDto>> getProductsPaginated(
+            @RequestParam(name = "page", defaultValue = "0") int page,
+            @RequestParam(name = "size", defaultValue = "10") int size,
+            @RequestParam(name = "categoryId", required = false) Long categoryId,
+            @RequestParam(name = "onlyActive", defaultValue = "false") boolean onlyActive,
+            @RequestParam(name = "search", required = false) String search,
+            @RequestParam(name = "sortBy", defaultValue = "createdAt") String sortBy,
+            @RequestParam(name = "sortDir", defaultValue = "desc") String sortDir
+    ) {
+        return ResponseEntity.ok(productService.getProductsPaginated(page, size, categoryId, onlyActive, search, sortBy, sortDir));
     }
 
     @GetMapping("/{id}")

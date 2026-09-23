@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   DollarSign, 
   ShoppingBag, 
@@ -27,12 +27,20 @@ import {
   FolderPlus,
   Folder,
   Edit2,
-  Trash2
+  Trash2,
+  Upload,
+  ImageIcon,
+  FileUp,
+  Loader2
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useStore } from '../../context/StoreContext';
-import type { UserAccount, Product, Category } from '../../context/StoreContext';
+import type { UserAccount, Product, Category, Order } from '../../context/StoreContext';
 import { getProductImage, handleImageError } from '../../utils/imageUtils';
+import { uploadService } from '../../services/uploadService';
+import { productService } from '../../services/productService';
+import { orderService } from '../../services/orderService';
+import { PaginationControl } from '../../components/PaginationControl';
 
 export const AdminDashboard: React.FC = () => {
   const { user } = useAuth();
@@ -74,6 +82,7 @@ export const AdminDashboard: React.FC = () => {
       showToast(`Đã nhập thêm ${restockQty} sản phẩm vào kho cho "${restockModalProduct.name}"!`);
       setRestockModalProduct(null);
       setRestockQty(20);
+      fetchProducts();
     }
   };
 
@@ -155,6 +164,112 @@ export const AdminDashboard: React.FC = () => {
   const [newProductTag, setNewProductTag] = useState('Mới 2026');
   const [newProductDesc, setNewProductDesc] = useState('Chất liệu vải cao cấp thiết kế may đo thanh lịch.');
 
+  // File Upload State for New Product
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // File Upload State for Category Modal
+  const [isUploadingCatImage, setIsUploadingCatImage] = useState(false);
+  const catFileInputRef = useRef<HTMLInputElement>(null);
+
+  // Orders Server-Side Pagination State
+  const [orderPage, setOrderPage] = useState(0);
+  const [orderPageSize, setOrderPageSize] = useState(10);
+  const [orderStatusFilter, setOrderStatusFilter] = useState('ALL');
+  const [paginatedOrders, setPaginatedOrders] = useState<Order[]>([]);
+  const [orderTotalElements, setOrderTotalElements] = useState(0);
+  const [orderTotalPages, setOrderTotalPages] = useState(0);
+  const [isLoadingOrders, setIsLoadingOrders] = useState(false);
+
+  // Products Server-Side Pagination State
+  const [prodPage, setProdPage] = useState(0);
+  const [prodPageSize, setProdPageSize] = useState(10);
+  const [prodSearch, setProdSearch] = useState('');
+  const [prodCategoryFilter, setProdCategoryFilter] = useState<number | undefined>(undefined);
+  const [paginatedProducts, setPaginatedProducts] = useState<Product[]>([]);
+  const [prodTotalElements, setProdTotalElements] = useState(0);
+  const [prodTotalPages, setProdTotalPages] = useState(0);
+  const [isLoadingProducts, setIsLoadingProducts] = useState(false);
+
+  // Fetch paginated orders from server
+  const fetchOrders = async () => {
+    setIsLoadingOrders(true);
+    try {
+      const res = await orderService.getPaginated({
+        page: orderPage,
+        size: orderPageSize,
+        status: orderStatusFilter !== 'ALL' ? orderStatusFilter : undefined,
+        search: searchTerm.trim() || undefined,
+      });
+      setPaginatedOrders(res.content);
+      setOrderTotalElements(res.totalElements);
+      setOrderTotalPages(res.totalPages);
+    } catch (err) {
+      console.error('Lỗi khi tải đơn hàng phân trang:', err);
+    } finally {
+      setIsLoadingOrders(false);
+    }
+  };
+
+  // Fetch paginated products from server
+  const fetchProducts = async () => {
+    setIsLoadingProducts(true);
+    try {
+      const res = await productService.getPaginated({
+        page: prodPage,
+        size: prodPageSize,
+        categoryId: prodCategoryFilter,
+        search: prodSearch.trim() || undefined,
+      });
+      setPaginatedProducts(res.content);
+      setProdTotalElements(res.totalElements);
+      setProdTotalPages(res.totalPages);
+    } catch (err) {
+      console.error('Lỗi khi tải sản phẩm phân trang:', err);
+    } finally {
+      setIsLoadingProducts(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchOrders();
+  }, [orderPage, orderPageSize, orderStatusFilter, searchTerm]);
+
+  useEffect(() => {
+    fetchProducts();
+  }, [prodPage, prodPageSize, prodCategoryFilter, prodSearch]);
+
+  const handleFileUpload = async (file: File) => {
+    if (!file) return;
+    setIsUploadingImage(true);
+    setUploadError(null);
+    try {
+      const res = await uploadService.uploadImage(file);
+      setNewProductImage(res.url);
+      showToast(`Đã tải ảnh lên máy chủ thành công: ${res.fileName}`);
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || 'Tải ảnh thất bại. Vui lòng kiểm tra định dạng hoặc kích thước file.';
+      setUploadError(msg);
+    } finally {
+      setIsUploadingImage(false);
+    }
+  };
+
+  const handleCatFileUpload = async (file: File) => {
+    if (!file) return;
+    setIsUploadingCatImage(true);
+    try {
+      const res = await uploadService.uploadImage(file);
+      setCatImageUrl(res.url);
+      showToast(`Đã tải ảnh danh mục lên máy chủ: ${res.fileName}`);
+    } catch (err: any) {
+      alert(err?.response?.data?.message || 'Tải ảnh danh mục thất bại.');
+    } finally {
+      setIsUploadingCatImage(false);
+    }
+  };
+
   // Dynamically calculate KPIs
   const totalRevenue = orders.reduce((sum, o) => sum + o.total, 0);
   const activeProductsCount = products.filter((p) => p.isActive).length;
@@ -183,6 +298,13 @@ export const AdminDashboard: React.FC = () => {
     setIsAddProductOpen(false);
     // Reset form
     setNewProductName('');
+    fetchProducts();
+    showToast('Đã thêm sản phẩm mới thành công!');
+  };
+
+  const handleToggleProduct = async (productId: number) => {
+    await toggleProductStatus(productId);
+    fetchProducts();
   };
 
   const filteredUsers = users.filter(
@@ -203,6 +325,9 @@ export const AdminDashboard: React.FC = () => {
       (o.processedByEmail && o.processedByEmail.toLowerCase().includes(q))
     );
   });
+
+  const displayOrders = paginatedOrders.length > 0 || isLoadingOrders ? paginatedOrders : filteredOrders;
+  const displayProducts = paginatedProducts.length > 0 || isLoadingProducts ? paginatedProducts : products;
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -379,25 +504,68 @@ export const AdminDashboard: React.FC = () => {
       {activeTab === 'overview' && (
         <div className="space-y-6">
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-            <div className="p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="p-5 border-b border-slate-100 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
               <div>
-                <h3 className="font-semibold text-slate-900 text-base">Toàn bộ đơn hàng trong hệ thống</h3>
-                <p className="text-xs text-slate-500">Dữ liệu liên thông trực tiếp từ khách đặt hàng và nhân viên xử lý</p>
+                <div className="flex items-center gap-2">
+                  <h3 className="font-semibold text-slate-900 text-base">Toàn bộ đơn hàng trong hệ thống</h3>
+                  {isLoadingOrders && <Loader2 className="w-4 h-4 text-indigo-600 animate-spin" />}
+                </div>
+                <p className="text-xs text-slate-500">Phân trang máy chủ, liên thông trực tiếp từ khách đặt hàng và nhân viên xử lý</p>
               </div>
 
-              <div className="relative">
-                <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
-                <input
-                  type="text"
-                  placeholder="Tìm mã đơn, khách, nhân viên xử lý..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-9 pr-3 py-1.5 rounded-lg border border-slate-200 text-xs focus:ring-1 focus:ring-indigo-500 focus:outline-none w-72"
-                />
+              <div className="flex items-center gap-3 flex-wrap">
+                {/* Status filter pills */}
+                <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg text-xs overflow-x-auto max-w-full">
+                  {[
+                    { id: 'ALL', label: 'Tất cả' },
+                    { id: 'PENDING', label: 'Chờ duyệt' },
+                    { id: 'PROCESSING', label: 'Đóng gói' },
+                    { id: 'SHIPPED', label: 'Đang giao' },
+                    { id: 'DELIVERED', label: 'Đã giao' },
+                    { id: 'CANCELLED', label: 'Đã hủy' },
+                  ].map((st) => (
+                    <button
+                      key={st.id}
+                      onClick={() => {
+                        setOrderStatusFilter(st.id);
+                        setOrderPage(0);
+                      }}
+                      className={`px-2.5 py-1 rounded-md font-medium transition whitespace-nowrap ${
+                        orderStatusFilter === st.id
+                          ? 'bg-white text-indigo-700 font-bold shadow-sm'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      {st.label}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="relative">
+                  <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Tìm mã đơn, khách, nhân viên..."
+                    value={searchTerm}
+                    onChange={(e) => {
+                      setSearchTerm(e.target.value);
+                      setOrderPage(0);
+                    }}
+                    className="pl-9 pr-3 py-1.5 rounded-lg border border-slate-200 text-xs focus:ring-1 focus:ring-indigo-500 focus:outline-none w-56 sm:w-64"
+                  />
+                </div>
               </div>
             </div>
 
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto relative">
+              {isLoadingOrders && (
+                <div className="absolute inset-0 bg-white/40 backdrop-blur-[1px] flex items-center justify-center z-10">
+                  <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-full border border-slate-200 shadow-sm text-xs font-semibold text-indigo-600">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Đang tải đơn hàng...</span>
+                  </div>
+                </div>
+              )}
               <table className="w-full text-left text-sm text-slate-600">
                 <thead className="bg-slate-50 text-slate-700 text-xs font-semibold uppercase tracking-wider border-b border-slate-100">
                   <tr>
@@ -412,14 +580,14 @@ export const AdminDashboard: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {filteredOrders.length === 0 ? (
+                  {displayOrders.length === 0 ? (
                     <tr>
                       <td colSpan={8} className="px-5 py-8 text-center text-slate-400 text-xs">
-                        Không tìm thấy đơn hàng nào phù hợp với từ khóa "{searchTerm}".
+                        Không tìm thấy đơn hàng nào phù hợp với bộ lọc hiện tại.
                       </td>
                     </tr>
                   ) : (
-                    filteredOrders.map((order) => (
+                    displayOrders.map((order) => (
                       <tr key={order.id} className="hover:bg-slate-50/70 transition">
                         <td className="px-5 py-3.5 font-mono font-semibold text-slate-900 text-xs">{order.id}</td>
                         <td className="px-5 py-3.5">
@@ -470,6 +638,20 @@ export const AdminDashboard: React.FC = () => {
                 </tbody>
               </table>
             </div>
+
+            {/* Server-Side Pagination Controls */}
+            <PaginationControl
+              page={orderPage}
+              totalPages={orderTotalPages || 1}
+              totalElements={orderTotalElements || displayOrders.length}
+              pageSize={orderPageSize}
+              onPageChange={setOrderPage}
+              onPageSizeChange={(newSize) => {
+                setOrderPageSize(newSize);
+                setOrderPage(0);
+              }}
+              pageSizeOptions={[5, 10, 20, 50]}
+            />
           </div>
         </div>
       )}
@@ -477,16 +659,52 @@ export const AdminDashboard: React.FC = () => {
       {/* Tab 2: Products & Catalog CRUD */}
       {activeTab === 'products' && (
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="p-5 border-b border-slate-100 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
             <div>
-              <h3 className="font-semibold text-slate-900 text-base">Quản lý danh mục & Mẫu thiết kế</h3>
-              <p className="text-xs text-slate-500">Thêm, sửa giá bán, cập nhật trạng thái hiển thị trên Trang Chủ</p>
+              <div className="flex items-center gap-2">
+                <h3 className="font-semibold text-slate-900 text-base">Quản lý danh mục & Mẫu thiết kế</h3>
+                {isLoadingProducts && <Loader2 className="w-4 h-4 text-indigo-600 animate-spin" />}
+              </div>
+              <p className="text-xs text-slate-500">Phân trang máy chủ, lọc danh mục, chỉnh sửa giá bán và cập nhật tồn kho</p>
             </div>
-            <div className="flex items-center gap-2">
+            
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Category Filter */}
+              <select
+                value={prodCategoryFilter ?? ''}
+                onChange={(e) => {
+                  setProdCategoryFilter(e.target.value ? Number(e.target.value) : undefined);
+                  setProdPage(0);
+                }}
+                className="px-2.5 py-1.5 text-xs border border-slate-200 rounded-lg bg-white text-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-500 font-medium"
+              >
+                <option value="">Tất cả danh mục</option>
+                {categories.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+
+              {/* Search */}
+              <div className="relative">
+                <Search className="w-3.5 h-3.5 absolute left-2.5 top-2.5 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Tìm tên sản phẩm..."
+                  value={prodSearch}
+                  onChange={(e) => {
+                    setProdSearch(e.target.value);
+                    setProdPage(0);
+                  }}
+                  className="pl-8 pr-2.5 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500 w-44 sm:w-52"
+                />
+              </div>
+
               <button
                 onClick={() => {
-                  if (products.length > 0) {
-                    setRestockModalProduct(products[0]);
+                  if (displayProducts.length > 0) {
+                    setRestockModalProduct(displayProducts[0]);
                     setRestockQty(20);
                   }
                 }}
@@ -495,7 +713,10 @@ export const AdminDashboard: React.FC = () => {
                 <Boxes className="w-3.5 h-3.5" /> Phiếu nhập kho
               </button>
               <button
-                onClick={() => setIsAddProductOpen(true)}
+                onClick={() => {
+                  setIsAddProductOpen(true);
+                  setUploadError(null);
+                }}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-semibold hover:bg-indigo-700 transition"
               >
                 <PlusCircle className="w-3.5 h-3.5" /> Thêm sản phẩm mới
@@ -503,7 +724,15 @@ export const AdminDashboard: React.FC = () => {
             </div>
           </div>
 
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto relative">
+            {isLoadingProducts && (
+              <div className="absolute inset-0 bg-white/40 backdrop-blur-[1px] flex items-center justify-center z-10">
+                <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-full border border-slate-200 shadow-sm text-xs font-semibold text-indigo-600">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Đang tải sản phẩm...</span>
+                </div>
+              </div>
+            )}
             <table className="w-full text-left text-sm text-slate-600">
               <thead className="bg-slate-50 text-slate-700 text-xs font-semibold uppercase tracking-wider border-b border-slate-100">
                 <tr>
@@ -517,59 +746,81 @@ export const AdminDashboard: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {products.map((p) => (
-                  <tr key={p.id} className="hover:bg-slate-50/70 transition">
-                    <td className="px-5 py-3">
-                      <img 
-                        src={getProductImage(p.image)} 
-                        alt={p.name} 
-                        onError={handleImageError}
-                        className="w-10 h-10 object-cover rounded-lg bg-slate-100" 
-                      />
-                    </td>
-                    <td className="px-5 py-3.5 font-medium text-slate-900">{p.name}</td>
-                    <td className="px-5 py-3.5 text-xs text-slate-500">{p.category}</td>
-                    <td className="px-5 py-3.5 font-semibold text-slate-900">{p.price.toLocaleString('vi-VN')} ₫</td>
-                    <td className="px-5 py-3.5 font-mono text-xs">
-                      <div className="flex items-center gap-2">
-                        <span className={p.stock <= 5 ? 'text-red-600 font-bold' : 'text-slate-800'}>
-                          {p.stock} chiếc
-                        </span>
-                        <button
-                          onClick={() => {
-                            setRestockModalProduct(p);
-                            setRestockQty(20);
-                          }}
-                          className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded text-[11px] font-semibold transition"
-                          title="Nhập thêm hàng vào kho"
-                        >
-                          <Plus className="w-3 h-3" /> Nhập kho
-                        </button>
-                      </div>
-                    </td>
-                    <td className="px-5 py-3.5">
-                      <span className={`inline-block px-2 py-0.5 rounded text-[11px] font-semibold ${
-                        p.isActive ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'
-                      }`}>
-                        {p.isActive ? 'Đang bán' : 'Đã ẩn'}
-                      </span>
-                    </td>
-                    <td className="px-5 py-3.5 text-right">
-                      <button
-                        onClick={() => toggleProductStatus(p.id)}
-                        className={`p-1.5 rounded-lg text-xs font-semibold transition ${
-                          p.isActive ? 'text-amber-600 hover:bg-amber-50' : 'text-emerald-600 hover:bg-emerald-50'
-                        }`}
-                        title={p.isActive ? 'Ẩn khỏi cửa hàng' : 'Bật hiển thị'}
-                      >
-                        {p.isActive ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                      </button>
+                {displayProducts.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="px-5 py-8 text-center text-slate-400 text-xs">
+                      Không tìm thấy sản phẩm nào phù hợp với bộ lọc hiện tại.
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  displayProducts.map((p) => (
+                    <tr key={p.id} className="hover:bg-slate-50/70 transition">
+                      <td className="px-5 py-3">
+                        <img 
+                          src={getProductImage(p.image)} 
+                          alt={p.name} 
+                          onError={handleImageError}
+                          className="w-10 h-10 object-cover rounded-lg bg-slate-100" 
+                        />
+                      </td>
+                      <td className="px-5 py-3.5 font-medium text-slate-900">{p.name}</td>
+                      <td className="px-5 py-3.5 text-xs text-slate-500">{p.category}</td>
+                      <td className="px-5 py-3.5 font-semibold text-slate-900">{p.price.toLocaleString('vi-VN')} ₫</td>
+                      <td className="px-5 py-3.5 font-mono text-xs">
+                        <div className="flex items-center gap-2">
+                          <span className={p.stock <= 5 ? 'text-red-600 font-bold' : 'text-slate-800'}>
+                            {p.stock} chiếc
+                          </span>
+                          <button
+                            onClick={() => {
+                              setRestockModalProduct(p);
+                              setRestockQty(20);
+                            }}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded text-[11px] font-semibold transition"
+                            title="Nhập thêm hàng vào kho"
+                          >
+                            <Plus className="w-3 h-3" /> Nhập kho
+                          </button>
+                        </div>
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <span className={`inline-block px-2 py-0.5 rounded text-[11px] font-semibold ${
+                          p.isActive ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'
+                        }`}>
+                          {p.isActive ? 'Đang bán' : 'Đã ẩn'}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3.5 text-right">
+                        <button
+                          onClick={() => handleToggleProduct(p.id)}
+                          className={`p-1.5 rounded-lg text-xs font-semibold transition ${
+                            p.isActive ? 'text-amber-600 hover:bg-amber-50' : 'text-emerald-600 hover:bg-emerald-50'
+                          }`}
+                          title={p.isActive ? 'Ẩn khỏi cửa hàng' : 'Bật hiển thị'}
+                        >
+                          {p.isActive ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
+
+          {/* Server-Side Pagination Controls */}
+          <PaginationControl
+            page={prodPage}
+            totalPages={prodTotalPages || 1}
+            totalElements={prodTotalElements || displayProducts.length}
+            pageSize={prodPageSize}
+            onPageChange={setProdPage}
+            onPageSizeChange={(newSize) => {
+              setProdPageSize(newSize);
+              setProdPage(0);
+            }}
+            pageSizeOptions={[5, 10, 20, 50]}
+          />
         </div>
       )}
 
@@ -896,14 +1147,91 @@ export const AdminDashboard: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Đường dẫn ảnh (URL) *</label>
-                <input
-                  type="url"
-                  required
-                  value={newProductImage}
-                  onChange={(e) => setNewProductImage(e.target.value)}
-                  className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:ring-1 focus:ring-indigo-500 focus:outline-none"
-                />
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-semibold text-slate-700">Hình ảnh sản phẩm *</label>
+                  <span className="text-[11px] text-slate-400">JPG, PNG, WEBP, GIF (Tối đa 10MB)</span>
+                </div>
+
+                {/* Upload from Computer Box */}
+                <div className="p-3 border-2 border-dashed border-indigo-200 hover:border-indigo-400 bg-indigo-50/40 rounded-xl transition flex flex-col sm:flex-row items-center gap-3 mb-2.5">
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    accept="image/jpeg,image/png,image/webp,image/gif,image/svg+xml"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleFileUpload(file);
+                    }}
+                  />
+
+                  {/* Thumbnail Preview */}
+                  <div className="relative w-16 h-16 rounded-lg overflow-hidden bg-white border border-slate-200 flex-shrink-0 shadow-sm flex items-center justify-center">
+                    {newProductImage ? (
+                      <img
+                        src={newProductImage}
+                        alt="Preview"
+                        onError={handleImageError}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <ImageIcon className="w-6 h-6 text-slate-300" />
+                    )}
+                    {isUploadingImage && (
+                      <div className="absolute inset-0 bg-slate-900/60 flex items-center justify-center">
+                        <Loader2 className="w-5 h-5 text-white animate-spin" />
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex-1 text-center sm:text-left">
+                    <button
+                      type="button"
+                      disabled={isUploadingImage}
+                      onClick={() => fileInputRef.current?.click()}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-lg text-xs font-semibold shadow-sm transition"
+                    >
+                      {isUploadingImage ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          <span>Đang tải lên máy chủ...</span>
+                        </>
+                      ) : (
+                        <>
+                          <FileUp className="w-3.5 h-3.5" />
+                          <span>Tải ảnh từ máy tính</span>
+                        </>
+                      )}
+                    </button>
+                    <p className="text-[11px] text-slate-500 mt-1">
+                      Ảnh sẽ được lưu trữ trực tiếp trên máy chủ backend (`/uploads/images/`).
+                    </p>
+                  </div>
+                </div>
+
+                {uploadError && (
+                  <div className="mb-2 p-2 rounded-lg bg-red-50 text-red-600 text-[11px] flex items-center gap-1">
+                    <AlertTriangle className="w-3.5 h-3.5" />
+                    <span>{uploadError}</span>
+                  </div>
+                )}
+
+                {/* Manual URL Input fallback */}
+                <div className="relative">
+                  <input
+                    type="url"
+                    required
+                    placeholder="Đường dẫn ảnh tĩnh hoặc URL trực tuyến..."
+                    value={newProductImage}
+                    onChange={(e) => setNewProductImage(e.target.value)}
+                    className="w-full pl-3 pr-16 py-2 text-xs border border-slate-200 rounded-lg focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+                  />
+                  {newProductImage.startsWith('/uploads/') && (
+                    <span className="absolute right-2 top-2 text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded">
+                      Máy chủ
+                    </span>
+                  )}
+                </div>
               </div>
 
               <div>
@@ -1084,14 +1412,35 @@ export const AdminDashboard: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Ảnh minh họa (Tùy chọn URL)</label>
-                <input
-                  type="url"
-                  placeholder="https://images.unsplash.com/..."
-                  value={catImageUrl}
-                  onChange={(e) => setCatImageUrl(e.target.value)}
-                  className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:ring-1 focus:ring-indigo-500 focus:outline-none"
-                />
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Ảnh minh họa (Tải lên hoặc dán URL)</label>
+                <div className="flex gap-2">
+                  <input
+                    type="file"
+                    ref={catFileInputRef}
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleCatFileUpload(file);
+                    }}
+                  />
+                  <input
+                    type="url"
+                    placeholder="https://... hoặc bấm tải ảnh từ máy"
+                    value={catImageUrl}
+                    onChange={(e) => setCatImageUrl(e.target.value)}
+                    className="flex-1 px-3 py-2 text-xs border border-slate-200 rounded-lg focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    disabled={isUploadingCatImage}
+                    onClick={() => catFileInputRef.current?.click()}
+                    className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg border border-slate-200 inline-flex items-center gap-1 transition flex-shrink-0"
+                  >
+                    {isUploadingCatImage ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+                    <span>{isUploadingCatImage ? 'Đang tải...' : 'Tải ảnh'}</span>
+                  </button>
+                </div>
               </div>
 
               <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">

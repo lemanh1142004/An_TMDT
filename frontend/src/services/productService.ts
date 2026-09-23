@@ -53,12 +53,42 @@ function mapProduct(p: BackendProductDto): Product {
   };
 }
 
+export interface PageResponse<T> {
+  content: T[];
+  pageNumber: number;
+  pageSize: number;
+  totalElements: number;
+  totalPages: number;
+  first: boolean;
+  last: boolean;
+}
+
+export interface GetProductsPageParams {
+  page?: number;
+  size?: number;
+  categoryId?: number;
+  onlyActive?: boolean;
+  search?: string;
+  sortBy?: string;
+  sortDir?: 'asc' | 'desc';
+}
+
 export const productService = {
   getAll: async (onlyActive = false): Promise<Product[]> => {
     const response = await api.get<BackendProductDto[]>('/api/products', {
       params: { onlyActive },
     });
     return response.data.map(mapProduct);
+  },
+
+  getPaginated: async (params?: GetProductsPageParams): Promise<PageResponse<Product>> => {
+    const response = await api.get<PageResponse<BackendProductDto>>('/api/products/page', {
+      params,
+    });
+    return {
+      ...response.data,
+      content: (response.data.content || []).map(mapProduct),
+    };
   },
 
   getById: async (id: number): Promise<Product> => {
