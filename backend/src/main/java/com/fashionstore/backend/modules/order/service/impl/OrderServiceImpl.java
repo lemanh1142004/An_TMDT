@@ -44,6 +44,10 @@ public class OrderServiceImpl implements OrderService {
             user = userRepository.findByEmail(userEmail).orElse(null);
         }
 
+        if (user == null) {
+            throw new AppException("Vui lòng đăng nhập tài khoản khách hàng để đặt hàng.", HttpStatus.UNAUTHORIZED);
+        }
+
         BigDecimal subtotal = BigDecimal.ZERO;
         String orderCode = "ORD-2026-" + ThreadLocalRandom.current().nextInt(1000, 9999);
         String trackingCode = "GHTK-" + ThreadLocalRandom.current().nextInt(10000000, 99999999);
@@ -52,7 +56,7 @@ public class OrderServiceImpl implements OrderService {
                 .orderCode(orderCode)
                 .user(user)
                 .customerName(request.getCustomerName())
-                .customerEmail(user != null ? user.getEmail() : (request.getCustomerEmail() != null ? request.getCustomerEmail() : "guest@fashionstore.com"))
+                .customerEmail(user.getEmail())
                 .phoneNumber(request.getPhone())
                 .shippingAddress(request.getAddress())
                 .paymentMethod(request.getPaymentMethod())
@@ -151,9 +155,10 @@ public class OrderServiceImpl implements OrderService {
                 .orElseThrow(() -> new AppException("Đơn hàng không tồn tại với ID: " + id, HttpStatus.NOT_FOUND));
 
         String callerEmail = principal != null ? principal.getName() : null;
+        User caller = null;
         boolean isStaffOrAdmin = false;
         if (callerEmail != null) {
-            User caller = userRepository.findByEmail(callerEmail).orElse(null);
+            caller = userRepository.findByEmail(callerEmail).orElse(null);
             if (caller != null) {
                 isStaffOrAdmin = caller.getRoles().stream()
                         .anyMatch(r -> r.getName() == com.fashionstore.backend.modules.user.entity.RoleType.ROLE_STAFF 
@@ -206,6 +211,12 @@ public class OrderServiceImpl implements OrderService {
             order.setTrackingCode(request.getTrackingCode());
         }
 
+        if (isStaffOrAdmin && caller != null) {
+            order.setProcessedBy(caller.getFullName());
+            order.setProcessedByEmail(caller.getEmail());
+            order.setProcessedAt(java.time.LocalDateTime.now());
+        }
+
         Order saved = orderRepository.save(order);
         log.info("Updated order ID={} from {} to status {} by {}", id, oldStatus, saved.getStatus(), callerEmail);
         return mapToDto(saved);
@@ -251,6 +262,17 @@ public class OrderServiceImpl implements OrderService {
             order.setStatus(OrderStatus.PROCESSING);
         }
 
+        if (principal != null) {
+            User caller = userRepository.findByEmail(callerEmail).orElse(null);
+            if (caller != null && caller.getRoles().stream()
+                    .anyMatch(r -> r.getName() == com.fashionstore.backend.modules.user.entity.RoleType.ROLE_ADMIN 
+                            || r.getName() == com.fashionstore.backend.modules.user.entity.RoleType.ROLE_STAFF)) {
+                order.setProcessedBy(caller.getFullName());
+                order.setProcessedByEmail(caller.getEmail());
+                order.setProcessedAt(java.time.LocalDateTime.now());
+            }
+        }
+
         Order saved = orderRepository.save(order);
         log.info("Payment confirmed successfully for order ID={} ({}), txnCode={}, paidAt={}, newStatus={}",
                 saved.getId(), saved.getOrderCode(), saved.getTransactionCode(), saved.getPaidAt(), saved.getStatus());
@@ -289,6 +311,9 @@ public class OrderServiceImpl implements OrderService {
                 .carrier(o.getCarrier())
                 .trackingCode(o.getTrackingCode())
                 .note(o.getNote())
+                .processedBy(o.getProcessedBy())
+                .processedByEmail(o.getProcessedByEmail())
+                .processedAt(o.getProcessedAt())
                 .items(itemDtos)
                 .createdAt(o.getCreatedAt())
                 .build();

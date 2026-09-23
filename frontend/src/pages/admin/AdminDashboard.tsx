@@ -21,30 +21,128 @@ import {
   Shield, 
   X,
   PackageCheck,
-  EyeOff
+  EyeOff,
+  Boxes,
+  Plus,
+  FolderPlus,
+  Folder,
+  Edit2,
+  Trash2
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useStore } from '../../context/StoreContext';
-import type { UserAccount } from '../../context/StoreContext';
+import type { UserAccount, Product, Category } from '../../context/StoreContext';
 import { getProductImage, handleImageError } from '../../utils/imageUtils';
 
 export const AdminDashboard: React.FC = () => {
   const { user } = useAuth();
   const { 
     products, 
+    categories,
     orders, 
     users, 
     addProduct, 
     toggleProductStatus, 
+    restockProduct,
+    createCategory,
+    updateCategory,
+    deleteCategory,
     toggleUserActive, 
     changeUserRole 
   } = useStore();
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'products' | 'users' | 'system'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'products' | 'categories' | 'users' | 'system'>('overview');
   const [searchTerm, setSearchTerm] = useState('');
   const [userSearchTerm, setUserSearchTerm] = useState('');
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncSuccess, setSyncSuccess] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 3500);
+  };
+
+  // Restock Modal State
+  const [restockModalProduct, setRestockModalProduct] = useState<Product | null>(null);
+  const [restockQty, setRestockQty] = useState<number>(20);
+
+  const handleRestock = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (restockModalProduct && restockQty > 0) {
+      await restockProduct(restockModalProduct.id, restockQty);
+      showToast(`Đã nhập thêm ${restockQty} sản phẩm vào kho cho "${restockModalProduct.name}"!`);
+      setRestockModalProduct(null);
+      setRestockQty(20);
+    }
+  };
+
+  // Category Modal State
+  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+  const [catName, setCatName] = useState('');
+  const [catSlug, setCatSlug] = useState('');
+  const [catDesc, setCatDesc] = useState('');
+  const [catImageUrl, setCatImageUrl] = useState('');
+  const [catError, setCatError] = useState<string | null>(null);
+
+  const handleOpenAddCategory = () => {
+    setEditingCategory(null);
+    setCatName('');
+    setCatSlug('');
+    setCatDesc('');
+    setCatImageUrl('');
+    setCatError(null);
+    setIsCategoryModalOpen(true);
+  };
+
+  const handleOpenEditCategory = (cat: Category) => {
+    setEditingCategory(cat);
+    setCatName(cat.name);
+    setCatSlug(cat.slug);
+    setCatDesc(cat.description || '');
+    setCatImageUrl(cat.imageUrl || '');
+    setCatError(null);
+    setIsCategoryModalOpen(true);
+  };
+
+  const handleSaveCategory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setCatError(null);
+    try {
+      if (editingCategory) {
+        await updateCategory(editingCategory.id, {
+          name: catName,
+          slug: catSlug || undefined,
+          description: catDesc || undefined,
+          imageUrl: catImageUrl || undefined,
+        });
+        showToast(`Đã cập nhật danh mục "${catName}" thành công!`);
+      } else {
+        await createCategory({
+          name: catName,
+          slug: catSlug || undefined,
+          description: catDesc || undefined,
+          imageUrl: catImageUrl || undefined,
+        });
+        showToast(`Đã tạo mới danh mục "${catName}" thành công!`);
+      }
+      setIsCategoryModalOpen(false);
+    } catch (err: any) {
+      setCatError(err?.response?.data?.message || 'Có lỗi xảy ra khi lưu danh mục.');
+    }
+  };
+
+  const handleDeleteCategory = async (id: number, name: string) => {
+    if (window.confirm(`Bạn có chắc chắn muốn xóa danh mục "${name}"? Các sản phẩm thuộc danh mục này có thể bị ảnh hưởng.`)) {
+      try {
+        await deleteCategory(id);
+        showToast(`Đã xóa danh mục "${name}"!`);
+      } catch (err: any) {
+        alert(err?.response?.data?.message || 'Không thể xóa danh mục này do đang có ràng buộc dữ liệu.');
+      }
+    }
+  };
 
   // New Product Modal State
   const [isAddProductOpen, setIsAddProductOpen] = useState(false);
@@ -93,6 +191,18 @@ export const AdminDashboard: React.FC = () => {
       u.email.toLowerCase().includes(userSearchTerm.toLowerCase()) ||
       u.phoneNumber.includes(userSearchTerm)
   );
+
+  const filteredOrders = orders.filter((o) => {
+    const q = searchTerm.toLowerCase();
+    return (
+      o.id.toLowerCase().includes(q) ||
+      o.customerName.toLowerCase().includes(q) ||
+      o.customerEmail.toLowerCase().includes(q) ||
+      o.phone.includes(q) ||
+      (o.processedBy && o.processedBy.toLowerCase().includes(q)) ||
+      (o.processedByEmail && o.processedByEmail.toLowerCase().includes(q))
+    );
+  });
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -161,6 +271,13 @@ export const AdminDashboard: React.FC = () => {
         </div>
       )}
 
+      {toastMessage && (
+        <div className="p-3.5 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-900 text-sm flex items-center gap-2 animate-fadeIn shadow-sm">
+          <CheckCircle2 className="w-4 h-4 text-indigo-600 flex-shrink-0" />
+          <span className="font-medium">{toastMessage}</span>
+        </div>
+      )}
+
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:border-indigo-200 transition">
@@ -225,28 +342,34 @@ export const AdminDashboard: React.FC = () => {
       </div>
 
       {/* Tabs Navigation */}
-      <div className="flex border-b border-slate-200 gap-6 text-sm font-medium text-slate-600">
+      <div className="flex border-b border-slate-200 gap-6 text-sm font-medium text-slate-600 overflow-x-auto">
         <button
           onClick={() => setActiveTab('overview')}
-          className={`pb-3 relative transition ${activeTab === 'overview' ? 'text-indigo-600 font-semibold border-b-2 border-indigo-600' : 'hover:text-slate-900'}`}
+          className={`pb-3 relative transition whitespace-nowrap ${activeTab === 'overview' ? 'text-indigo-600 font-semibold border-b-2 border-indigo-600' : 'hover:text-slate-900'}`}
         >
           Tổng quan & Đơn hàng ({orders.length})
         </button>
         <button
           onClick={() => setActiveTab('products')}
-          className={`pb-3 relative transition ${activeTab === 'products' ? 'text-indigo-600 font-semibold border-b-2 border-indigo-600' : 'hover:text-slate-900'}`}
+          className={`pb-3 relative transition whitespace-nowrap ${activeTab === 'products' ? 'text-indigo-600 font-semibold border-b-2 border-indigo-600' : 'hover:text-slate-900'}`}
         >
           Quản lý Sản phẩm & Tồn kho ({products.length})
         </button>
         <button
+          onClick={() => setActiveTab('categories')}
+          className={`pb-3 relative transition whitespace-nowrap ${activeTab === 'categories' ? 'text-indigo-600 font-semibold border-b-2 border-indigo-600' : 'hover:text-slate-900'}`}
+        >
+          Quản lý Danh mục ({categories.length})
+        </button>
+        <button
           onClick={() => setActiveTab('users')}
-          className={`pb-3 relative transition ${activeTab === 'users' ? 'text-indigo-600 font-semibold border-b-2 border-indigo-600' : 'hover:text-slate-900'}`}
+          className={`pb-3 relative transition whitespace-nowrap ${activeTab === 'users' ? 'text-indigo-600 font-semibold border-b-2 border-indigo-600' : 'hover:text-slate-900'}`}
         >
           Quản lý Người dùng & Nhân viên ({users.length})
         </button>
         <button
           onClick={() => setActiveTab('system')}
-          className={`pb-3 relative transition ${activeTab === 'system' ? 'text-indigo-600 font-semibold border-b-2 border-indigo-600' : 'hover:text-slate-900'}`}
+          className={`pb-3 relative transition whitespace-nowrap ${activeTab === 'system' ? 'text-indigo-600 font-semibold border-b-2 border-indigo-600' : 'hover:text-slate-900'}`}
         >
           Hạ tầng Microservices & Cache
         </button>
@@ -266,10 +389,10 @@ export const AdminDashboard: React.FC = () => {
                 <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
                 <input
                   type="text"
-                  placeholder="Tìm mã đơn / khách hàng..."
+                  placeholder="Tìm mã đơn, khách, nhân viên xử lý..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-9 pr-3 py-1.5 rounded-lg border border-slate-200 text-xs focus:ring-1 focus:ring-indigo-500 focus:outline-none w-64"
+                  className="pl-9 pr-3 py-1.5 rounded-lg border border-slate-200 text-xs focus:ring-1 focus:ring-indigo-500 focus:outline-none w-72"
                 />
               </div>
             </div>
@@ -284,37 +407,66 @@ export const AdminDashboard: React.FC = () => {
                     <th className="px-5 py-3">Tổng tiền</th>
                     <th className="px-5 py-3">Phương thức</th>
                     <th className="px-5 py-3">Trạng thái</th>
+                    <th className="px-5 py-3">Nhân viên xử lý</th>
                     <th className="px-5 py-3">Thời gian</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {orders.map((order) => (
-                    <tr key={order.id} className="hover:bg-slate-50/70 transition">
-                      <td className="px-5 py-3.5 font-mono font-semibold text-slate-900 text-xs">{order.id}</td>
-                      <td className="px-5 py-3.5">
-                        <div className="font-medium text-slate-900">{order.customerName}</div>
-                        <div className="text-xs text-slate-400">{order.customerEmail}</div>
+                  {filteredOrders.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="px-5 py-8 text-center text-slate-400 text-xs">
+                        Không tìm thấy đơn hàng nào phù hợp với từ khóa "{searchTerm}".
                       </td>
-                      <td className="px-5 py-3.5 text-xs">{order.items.reduce((s, i) => s + i.quantity, 0)} món</td>
-                      <td className="px-5 py-3.5 font-semibold text-slate-900">
-                        {order.total.toLocaleString('vi-VN')} ₫
-                      </td>
-                      <td className="px-5 py-3.5 text-xs">
-                        <div className="font-mono font-medium text-slate-800">{order.paymentMethod}</div>
-                        {order.isPaid ? (
-                          <div className="text-[10px] text-emerald-600 font-semibold mt-0.5">
-                            ✓ Đã thanh toán {order.transactionCode ? `(${order.transactionCode})` : ''}
-                          </div>
-                        ) : (
-                          <div className="text-[10px] text-amber-600 font-semibold mt-0.5">
-                            {order.paymentMethod === 'COD' ? 'Thu COD khi giao' : 'Chờ thanh toán'}
-                          </div>
-                        )}
-                      </td>
-                      <td className="px-5 py-3.5">{getStatusBadge(order.status)}</td>
-                      <td className="px-5 py-3.5 text-xs text-slate-500">{order.createdAt}</td>
                     </tr>
-                  ))}
+                  ) : (
+                    filteredOrders.map((order) => (
+                      <tr key={order.id} className="hover:bg-slate-50/70 transition">
+                        <td className="px-5 py-3.5 font-mono font-semibold text-slate-900 text-xs">{order.id}</td>
+                        <td className="px-5 py-3.5">
+                          <div className="font-medium text-slate-900">{order.customerName}</div>
+                          <div className="text-xs text-slate-400">{order.customerEmail}</div>
+                        </td>
+                        <td className="px-5 py-3.5 text-xs">{order.items.reduce((s, i) => s + i.quantity, 0)} món</td>
+                        <td className="px-5 py-3.5 font-semibold text-slate-900">
+                          {order.total.toLocaleString('vi-VN')} ₫
+                        </td>
+                        <td className="px-5 py-3.5 text-xs">
+                          <div className="font-mono font-medium text-slate-800">{order.paymentMethod}</div>
+                          {order.isPaid ? (
+                            <div className="text-[10px] text-emerald-600 font-semibold mt-0.5">
+                              ✓ Đã thanh toán {order.transactionCode ? `(${order.transactionCode})` : ''}
+                            </div>
+                          ) : (
+                            <div className="text-[10px] text-amber-600 font-semibold mt-0.5">
+                              {order.paymentMethod === 'COD' ? 'Thu COD khi giao' : 'Chờ thanh toán'}
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-5 py-3.5">{getStatusBadge(order.status)}</td>
+                        <td className="px-5 py-3.5 text-xs">
+                          {order.processedBy ? (
+                            <div className="inline-flex items-center gap-1.5 bg-blue-50 text-blue-800 px-2.5 py-1 rounded-lg border border-blue-100">
+                              <UserCheck className="w-3.5 h-3.5 text-blue-600 flex-shrink-0" />
+                              <div>
+                                <div className="font-semibold text-slate-900">{order.processedBy}</div>
+                                {order.processedByEmail && (
+                                  <div className="text-[10px] text-slate-500 font-mono">{order.processedByEmail}</div>
+                                )}
+                                {order.processedAt && (
+                                  <div className="text-[10px] text-blue-600 font-mono mt-0.5">{order.processedAt}</div>
+                                )}
+                              </div>
+                            </div>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-[11px] text-slate-400 bg-slate-100 px-2 py-0.5 rounded italic">
+                              <Clock className="w-3 h-3" /> Chờ nhân viên xử lý
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-5 py-3.5 text-xs text-slate-500">{order.createdAt}</td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
@@ -330,12 +482,25 @@ export const AdminDashboard: React.FC = () => {
               <h3 className="font-semibold text-slate-900 text-base">Quản lý danh mục & Mẫu thiết kế</h3>
               <p className="text-xs text-slate-500">Thêm, sửa giá bán, cập nhật trạng thái hiển thị trên Trang Chủ</p>
             </div>
-            <button
-              onClick={() => setIsAddProductOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-semibold hover:bg-indigo-700 transition"
-            >
-              <PlusCircle className="w-3.5 h-3.5" /> Thêm sản phẩm mới
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  if (products.length > 0) {
+                    setRestockModalProduct(products[0]);
+                    setRestockQty(20);
+                  }
+                }}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-600 text-white rounded-lg text-xs font-semibold hover:bg-amber-700 transition"
+              >
+                <Boxes className="w-3.5 h-3.5" /> Phiếu nhập kho
+              </button>
+              <button
+                onClick={() => setIsAddProductOpen(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-semibold hover:bg-indigo-700 transition"
+              >
+                <PlusCircle className="w-3.5 h-3.5" /> Thêm sản phẩm mới
+              </button>
+            </div>
           </div>
 
           <div className="overflow-x-auto">
@@ -366,9 +531,21 @@ export const AdminDashboard: React.FC = () => {
                     <td className="px-5 py-3.5 text-xs text-slate-500">{p.category}</td>
                     <td className="px-5 py-3.5 font-semibold text-slate-900">{p.price.toLocaleString('vi-VN')} ₫</td>
                     <td className="px-5 py-3.5 font-mono text-xs">
-                      <span className={p.stock <= 5 ? 'text-red-600 font-bold' : 'text-slate-800'}>
-                        {p.stock} chiếc
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className={p.stock <= 5 ? 'text-red-600 font-bold' : 'text-slate-800'}>
+                          {p.stock} chiếc
+                        </span>
+                        <button
+                          onClick={() => {
+                            setRestockModalProduct(p);
+                            setRestockQty(20);
+                          }}
+                          className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded text-[11px] font-semibold transition"
+                          title="Nhập thêm hàng vào kho"
+                        >
+                          <Plus className="w-3 h-3" /> Nhập kho
+                        </button>
+                      </div>
                     </td>
                     <td className="px-5 py-3.5">
                       <span className={`inline-block px-2 py-0.5 rounded text-[11px] font-semibold ${
@@ -390,6 +567,88 @@ export const AdminDashboard: React.FC = () => {
                     </td>
                   </tr>
                 ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Tab: Categories Management */}
+      {activeTab === 'categories' && (
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+          <div className="p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h3 className="font-semibold text-slate-900 text-base">Quản lý Danh mục Hàng Hóa (Categories)</h3>
+              <p className="text-xs text-slate-500">Tạo mới, sửa tên phân loại, đường dẫn slug và mô tả danh mục</p>
+            </div>
+            <button
+              onClick={handleOpenAddCategory}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-semibold hover:bg-indigo-700 transition"
+            >
+              <FolderPlus className="w-3.5 h-3.5" /> Thêm danh mục mới
+            </button>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm text-slate-600">
+              <thead className="bg-slate-50 text-slate-700 text-xs font-semibold uppercase tracking-wider border-b border-slate-100">
+                <tr>
+                  <th className="px-5 py-3">ID</th>
+                  <th className="px-5 py-3">Tên Danh Mục</th>
+                  <th className="px-5 py-3">Đường dẫn (Slug)</th>
+                  <th className="px-5 py-3">Mô tả</th>
+                  <th className="px-5 py-3">Số sản phẩm</th>
+                  <th className="px-5 py-3 text-right">Thao tác</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {categories.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-5 py-8 text-center text-slate-400 text-xs">
+                      Chưa có danh mục nào được khởi tạo.
+                    </td>
+                  </tr>
+                ) : (
+                  categories.map((cat) => {
+                    const prodCount = products.filter((p) => p.category === cat.name).length;
+                    return (
+                      <tr key={cat.id} className="hover:bg-slate-50/70 transition">
+                        <td className="px-5 py-3.5 font-mono text-xs text-slate-500">#{cat.id}</td>
+                        <td className="px-5 py-3.5 font-bold text-slate-900 flex items-center gap-2">
+                          <Folder className="w-4 h-4 text-indigo-500 flex-shrink-0" />
+                          <span>{cat.name}</span>
+                        </td>
+                        <td className="px-5 py-3.5 font-mono text-xs text-slate-600 bg-slate-50/60 rounded px-2 py-0.5">
+                          {cat.slug}
+                        </td>
+                        <td className="px-5 py-3.5 text-xs text-slate-500 max-w-xs truncate">
+                          {cat.description || 'Chưa có mô tả'}
+                        </td>
+                        <td className="px-5 py-3.5 text-xs font-semibold text-indigo-600">
+                          {prodCount} sản phẩm
+                        </td>
+                        <td className="px-5 py-3.5 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              onClick={() => handleOpenEditCategory(cat)}
+                              className="p-1.5 rounded-lg text-xs font-semibold text-indigo-600 hover:bg-indigo-50 transition"
+                              title="Chỉnh sửa danh mục"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteCategory(cat.id, cat.name)}
+                              className="p-1.5 rounded-lg text-xs font-semibold text-red-600 hover:bg-red-50 transition"
+                              title="Xóa danh mục"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
               </tbody>
             </table>
           </div>
@@ -670,6 +929,184 @@ export const AdminDashboard: React.FC = () => {
                   className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg shadow-sm transition"
                 >
                   Lưu & Xuất bản lên Website
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Restock Modal */}
+      {restockModalProduct && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div onClick={() => setRestockModalProduct(null)} className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs" />
+          <div className="relative bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 z-10 animate-fadeIn space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <Boxes className="w-5 h-5 text-amber-600" />
+                <h3 className="font-bold text-slate-900 text-base">Phiếu Nhập Thêm Hàng Vào Kho</h3>
+              </div>
+              <button onClick={() => setRestockModalProduct(null)} className="p-1 rounded-lg text-slate-400 hover:text-slate-700">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Chọn sản phẩm cần nhập kho *</label>
+                <select
+                  value={restockModalProduct.id}
+                  onChange={(e) => {
+                    const found = products.find((p) => p.id === Number(e.target.value));
+                    if (found) setRestockModalProduct(found);
+                  }}
+                  className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:ring-1 focus:ring-amber-500 focus:outline-none"
+                >
+                  {products.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name} (Hiện có: {p.stock} chiếc - {p.category})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex gap-3 items-center bg-slate-50 p-3 rounded-xl border border-slate-100">
+                <img 
+                  src={getProductImage(restockModalProduct.image)} 
+                  alt={restockModalProduct.name} 
+                  onError={handleImageError}
+                  className="w-12 h-12 object-cover rounded-lg bg-white border border-slate-200 flex-shrink-0" 
+                />
+                <div className="min-w-0">
+                  <h4 className="text-xs font-bold text-slate-900 truncate">{restockModalProduct.name}</h4>
+                  <p className="text-[11px] text-slate-500">
+                    Tồn kho hiện có: <strong className={restockModalProduct.stock <= 5 ? 'text-red-600' : 'text-slate-800'}>{restockModalProduct.stock}</strong> chiếc
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <form onSubmit={handleRestock} className="space-y-4 pt-1">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Số lượng nhập thêm vào kho *</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="10000"
+                  required
+                  value={restockQty}
+                  onChange={(e) => setRestockQty(parseInt(e.target.value) || 0)}
+                  className="w-full px-3 py-2 text-sm font-bold font-mono border border-slate-200 rounded-lg focus:ring-1 focus:ring-amber-500 focus:outline-none"
+                />
+                <p className="text-[11px] text-slate-500 mt-1">
+                  Số lượng tồn dự kiến sau nhập: <strong className="text-emerald-700">{restockModalProduct.stock + (restockQty || 0)}</strong> chiếc
+                </p>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setRestockModalProduct(null)}
+                  className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-lg shadow-sm transition inline-flex items-center gap-1.5"
+                >
+                  <Boxes className="w-3.5 h-3.5" /> Lưu & Tăng tồn kho
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Category Modal (Add / Edit) */}
+      {isCategoryModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div onClick={() => setIsCategoryModalOpen(false)} className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs" />
+          <div className="relative bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 z-10 animate-fadeIn space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <FolderPlus className="w-5 h-5 text-indigo-600" />
+                <h3 className="font-bold text-slate-900 text-base">
+                  {editingCategory ? `Chỉnh Sửa Danh Mục: ${editingCategory.name}` : 'Thêm Danh Mục Hàng Hóa Mới'}
+                </h3>
+              </div>
+              <button onClick={() => setIsCategoryModalOpen(false)} className="p-1 rounded-lg text-slate-400 hover:text-slate-700">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {catError && (
+              <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs flex items-center gap-1.5">
+                <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                <span>{catError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleSaveCategory} className="space-y-3.5">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Tên danh mục *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Ví dụ: Áo Khoác & Blazer"
+                  value={catName}
+                  onChange={(e) => setCatName(e.target.value)}
+                  className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Đường dẫn tĩnh (Slug / URL)</label>
+                <input
+                  type="text"
+                  placeholder="Để trống hệ thống sẽ tự sinh (ví dụ: ao-khoac-blazer)"
+                  value={catSlug}
+                  onChange={(e) => setCatSlug(e.target.value)}
+                  className="w-full px-3 py-2 text-xs font-mono border border-slate-200 rounded-lg focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+                />
+                <p className="text-[10px] text-slate-400 mt-1">Định dạng URL thân thiện SEO cho website.</p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Mô tả ngắn danh mục</label>
+                <textarea
+                  rows={2}
+                  placeholder="Mô tả phong cách, dòng hàng cho danh mục này..."
+                  value={catDesc}
+                  onChange={(e) => setCatDesc(e.target.value)}
+                  className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Ảnh minh họa (Tùy chọn URL)</label>
+                <input
+                  type="url"
+                  placeholder="https://images.unsplash.com/..."
+                  value={catImageUrl}
+                  onChange={(e) => setCatImageUrl(e.target.value)}
+                  className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setIsCategoryModalOpen(false)}
+                  className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg shadow-sm transition"
+                >
+                  {editingCategory ? 'Lưu thay đổi' : 'Tạo danh mục'}
                 </button>
               </div>
             </form>

@@ -87,4 +87,18 @@ export const productService = {
     const response = await api.get<Category[]>('/api/categories');
     return response.data;
   },
+
+  createCategory: async (payload: { name: string; slug?: string; description?: string; imageUrl?: string }): Promise<Category> => {
+    const response = await api.post<Category>('/api/categories', payload);
+    return response.data;
+  },
+
+  updateCategory: async (id: number, payload: { name?: string; slug?: string; description?: string; imageUrl?: string }): Promise<Category> => {
+    const response = await api.put<Category>(`/api/categories/${id}`, payload);
+    return response.data;
+  },
+
+  deleteCategory: async (id: number): Promise<void> => {
+    await api.delete(`/api/categories/${id}`);
+  },
 };

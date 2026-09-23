@@ -2,6 +2,7 @@ package com.fashionstore.backend.modules.product.service.impl;
 
 import com.fashionstore.backend.common.exception.AppException;
 import com.fashionstore.backend.modules.product.dto.CategoryDto;
+import com.fashionstore.backend.modules.product.dto.CreateCategoryRequest;
 import com.fashionstore.backend.modules.product.dto.CreateProductRequest;
 import com.fashionstore.backend.modules.product.dto.ProductDto;
 import com.fashionstore.backend.modules.product.entity.Category;
@@ -113,6 +114,90 @@ public class ProductServiceImpl implements ProductService {
                         .imageUrl(c.getImageUrl())
                         .build())
                 .toList();
+    }
+
+    @Override
+    @Transactional
+    public CategoryDto createCategory(CreateCategoryRequest request) {
+        String slug = (request.getSlug() != null && !request.getSlug().isBlank())
+                ? request.getSlug().trim().toLowerCase()
+                : generateSlug(request.getName());
+
+        if (categoryRepository.findBySlug(slug).isPresent()) {
+            throw new AppException("Slug danh mục '" + slug + "' đã tồn tại", HttpStatus.BAD_REQUEST);
+        }
+
+        Category category = Category.builder()
+                .name(request.getName().trim())
+                .slug(slug)
+                .description(request.getDescription())
+                .imageUrl(request.getImageUrl())
+                .build();
+
+        Category saved = categoryRepository.save(category);
+        log.info("Created new category: ID={}, Name={}", saved.getId(), saved.getName());
+        return mapCategoryToDto(saved);
+    }
+
+    @Override
+    @Transactional
+    public CategoryDto updateCategory(Long id, CreateCategoryRequest request) {
+        Category category = categoryRepository.findById(id)
+                .orElseThrow(() -> new AppException("Danh mục không tồn tại với ID: " + id, HttpStatus.NOT_FOUND));
+
+        if (request.getName() != null && !request.getName().isBlank()) {
+            category.setName(request.getName().trim());
+        }
+
+        if (request.getSlug() != null && !request.getSlug().isBlank()) {
+            String newSlug = request.getSlug().trim().toLowerCase();
+            categoryRepository.findBySlug(newSlug).ifPresent(existing -> {
+                if (!existing.getId().equals(id)) {
+                    throw new AppException("Slug danh mục '" + newSlug + "' đã tồn tại", HttpStatus.BAD_REQUEST);
+                }
+            });
+            category.setSlug(newSlug);
+        }
+
+        if (request.getDescription() != null) {
+            category.setDescription(request.getDescription());
+        }
+        if (request.getImageUrl() != null) {
+            category.setImageUrl(request.getImageUrl());
+        }
+
+        Category saved = categoryRepository.save(category);
+        log.info("Updated category ID={}: Name={}", saved.getId(), saved.getName());
+        return mapCategoryToDto(saved);
+    }
+
+    @Override
+    @Transactional
+    public void deleteCategory(Long id) {
+        Category category = categoryRepository.findById(id)
+                .orElseThrow(() -> new AppException("Danh mục không tồn tại với ID: " + id, HttpStatus.NOT_FOUND));
+
+        categoryRepository.delete(category);
+        log.info("Deleted category ID={}", id);
+    }
+
+    private CategoryDto mapCategoryToDto(Category c) {
+        return CategoryDto.builder()
+                .id(c.getId())
+                .name(c.getName())
+                .slug(c.getSlug())
+                .description(c.getDescription())
+                .imageUrl(c.getImageUrl())
+                .build();
+    }
+
+    private String generateSlug(String input) {
+        if (input == null) return "";
+        String normalized = java.text.Normalizer.normalize(input, java.text.Normalizer.Form.NFD);
+        String slug = normalized.replaceAll("\\p{InCombiningDiacriticalMarks}+", "");
+        slug = slug.toLowerCase().replaceAll("[^a-z0-9\\s-]", "");
+        slug = slug.replaceAll("[\\s-]+", " ").trim();
+        return slug.replaceAll(" ", "-");
     }
 
     private ProductDto mapToDto(Product p) {

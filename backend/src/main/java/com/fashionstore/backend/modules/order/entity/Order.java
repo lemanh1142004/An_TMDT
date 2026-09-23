@@ -83,6 +83,14 @@ public class Order {
     @Column(columnDefinition = "TEXT")
     private String note;
 
+    @Column(length = 100)
+    private String processedBy;
+
+    @Column(length = 100)
+    private String processedByEmail;
+
+    private LocalDateTime processedAt;
+
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<OrderItem> items = new ArrayList<>();

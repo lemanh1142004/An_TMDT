@@ -34,6 +34,9 @@ public class OrderDto {
     private String carrier;
     private String trackingCode;
     private String note;
+    private String processedBy;
+    private String processedByEmail;
+    private LocalDateTime processedAt;
     private List<OrderItemDto> items;
     private LocalDateTime createdAt;
 }

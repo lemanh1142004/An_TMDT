@@ -1,5 +1,6 @@
 package com.fashionstore.backend.modules.order.controller;
 
+import com.fashionstore.backend.common.exception.AppException;
 import com.fashionstore.backend.modules.order.dto.ConfirmPaymentRequest;
 import com.fashionstore.backend.modules.order.dto.CreateOrderRequest;
 import com.fashionstore.backend.modules.order.dto.OrderDto;
@@ -27,8 +28,10 @@ public class OrderController {
             @Valid @RequestBody CreateOrderRequest request,
             Principal principal
     ) {
-        String email = principal != null ? principal.getName() : request.getCustomerEmail();
-        return ResponseEntity.status(HttpStatus.CREATED).body(orderService.createOrder(email, request));
+        if (principal == null) {
+            throw new AppException("Vui lòng đăng nhập tài khoản khách hàng để đặt hàng.", HttpStatus.UNAUTHORIZED);
+        }
+        return ResponseEntity.status(HttpStatus.CREATED).body(orderService.createOrder(principal.getName(), request));
     }
 
     @PostMapping("/{id}/pay")

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { X, Trash2, Plus, Minus, ShoppingBag, ArrowRight, CreditCard } from 'lucide-react';
+import { X, Trash2, Plus, Minus, ShoppingBag, ArrowRight, CreditCard, LogIn, ShieldAlert } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import type { CartItem } from '../context/StoreContext';
+import { useAuth } from '../context/AuthContext';
 import { getProductImage, handleImageError } from '../utils/imageUtils';
 
 interface CartDrawerProps {
@@ -10,6 +11,9 @@ interface CartDrawerProps {
 
 export const CartDrawer: React.FC<CartDrawerProps> = ({ onOpenCheckout }) => {
   const { cart, isCartOpen, setIsCartOpen, updateCartQty, removeFromCart, clearCart, openCheckout } = useStore();
+  const { user, isAuthenticated } = useAuth();
+  const isAdmin = user?.roles?.includes('ROLE_ADMIN');
+  const isStaff = !isAdmin && user?.roles?.includes('ROLE_STAFF');
 
   // Track which item indices in the cart are selected for checkout (default: all selected)
   const [selectedIndices, setSelectedIndices] = useState<number[]>([]);
@@ -271,6 +275,20 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ onOpenCheckout }) => {
               </div>
 
               <div className="space-y-2 pt-1">
+                {!isAuthenticated && (
+                  <div className="flex items-center gap-2 p-2.5 bg-amber-50 border border-amber-200 rounded-xl text-[11px] text-amber-800">
+                    <LogIn className="w-3.5 h-3.5 text-amber-600 flex-shrink-0" />
+                    <span>Quý khách cần đăng nhập tài khoản khách hàng để hoàn tất đặt hàng.</span>
+                  </div>
+                )}
+
+                {(isAdmin || isStaff) && (
+                  <div className="flex items-center gap-2 p-2.5 bg-amber-50 border border-amber-200 rounded-xl text-[11px] text-amber-800">
+                    <ShieldAlert className="w-3.5 h-3.5 text-amber-600 flex-shrink-0" />
+                    <span>Đang thao tác với tài khoản {isAdmin ? 'Quản trị viên (Admin)' : 'Nhân viên (Staff)'}.</span>
+                  </div>
+                )}
+
                 <button
                   disabled={selectedItems.length === 0}
                   onClick={handleCheckoutSelected}

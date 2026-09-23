@@ -1,5 +1,17 @@
-import React, { useState } from 'react';
-import { X, CheckCircle, Tag, Truck, CreditCard, Banknote, Package, QrCode } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { 
+  X, 
+  CheckCircle, 
+  Tag, 
+  Truck, 
+  CreditCard, 
+  Banknote, 
+  Package, 
+  QrCode, 
+  LogIn, 
+  UserPlus, 
+  ShieldAlert 
+} from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import type { Order, CartItem } from '../context/StoreContext';
 import { useAuth } from '../context/AuthContext';
@@ -18,7 +30,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   itemsToCheckout: propItems 
 }) => {
   const { cart, createOrder, isCheckoutOpen, closeCheckout, checkoutItems } = useStore();
-  const { user } = useAuth();
+  const { user, isAuthenticated, logout } = useAuth();
   const navigate = useNavigate();
 
   const isOpen = propIsOpen !== undefined ? propIsOpen : isCheckoutOpen;
@@ -29,11 +41,14 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     : (checkoutItems && checkoutItems.length > 0 ? checkoutItems : cart);
   const activeItems = (rawItems || []).filter((item) => item && item.product && typeof item.product.price === 'number');
 
-  // ALL hooks must be called unconditionally at top level
-  const [customerName, setCustomerName] = useState(user?.fullName || 'Trần Thị Khách Hàng');
-  const [phone, setPhone] = useState(user?.phoneNumber || '0903 456 789');
-  const [address, setAddress] = useState('Số 45, Đường Lê Lợi, P. Bến Nghé, Quận 1, TP. HCM');
-  const [paymentMethod, setPaymentMethod] = useState<'COD' | 'VNPAY' | 'Chuyển khoản' | 'Thẻ quốc tế' | 'Ví MoMo'>('COD');
+  const isAdmin = user?.roles?.includes('ROLE_ADMIN');
+  const isStaff = !isAdmin && user?.roles?.includes('ROLE_STAFF');
+
+  // ALL hooks must be called unconditionally at top level - NO dummy fake name/phone defaults
+  const [customerName, setCustomerName] = useState(user?.fullName || '');
+  const [phone, setPhone] = useState(user?.phoneNumber || '');
+  const [address, setAddress] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState<'COD' | 'VNPAY' | 'Chuyển khoản' | 'Thẻ quốc tế' | 'Ví MoMo'>('Chuyển khoản');
   const [isGatewayOpen, setIsGatewayOpen] = useState(false);
   const [voucherCode, setVoucherCode] = useState('');
   const [appliedVoucher, setAppliedVoucher] = useState<string | null>(null);
@@ -42,6 +57,18 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const [createdOrder, setCreatedOrder] = useState<Order | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+
+  // Sync state with authenticated user profile
+  useEffect(() => {
+    if (user) {
+      setCustomerName(user.fullName || '');
+      setPhone(user.phoneNumber || '');
+    } else {
+      setCustomerName('');
+      setPhone('');
+      setAddress('');
+    }
+  }, [user, isOpen]);
 
   if (!isOpen) return null;
 
@@ -73,15 +100,40 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     e.preventDefault();
     setIsSubmitting(true);
     setSubmitError(null);
+
+    if (!isAuthenticated || !user) {
+      setSubmitError('Vui lòng đăng nhập tài khoản khách hàng để đặt hàng.');
+      setIsSubmitting(false);
+      return;
+    }
+
+    if (!customerName.trim()) {
+      setSubmitError('Vui lòng nhập họ tên người nhận hàng.');
+      setIsSubmitting(false);
+      return;
+    }
+
+    if (!phone.trim()) {
+      setSubmitError('Vui lòng nhập số điện thoại nhận hàng.');
+      setIsSubmitting(false);
+      return;
+    }
+
+    if (!address.trim()) {
+      setSubmitError('Vui lòng nhập địa chỉ nhận hàng chi tiết.');
+      setIsSubmitting(false);
+      return;
+    }
+
     try {
       const order = await createOrder({
-        customerEmail: user?.email || 'customer@fashionstore.com',
-        customerName,
-        phone,
-        address,
+        customerEmail: user.email,
+        customerName: customerName.trim(),
+        phone: phone.trim(),
+        address: address.trim(),
         paymentMethod,
         discountCode: appliedVoucher || undefined,
-        note,
+        note: note.trim() || undefined,
         items: activeItems.map((item) => ({
           productId: item.product?.id,
           size: item.size || 'L',
@@ -94,7 +146,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         setIsGatewayOpen(true);
       }
     } catch (err: any) {
-      setSubmitError(err.response?.data?.message || 'Không thể tạo đơn hàng. Vui lòng thử lại.');
+      const errMsg = err.response?.data?.message || err.message || 'Không thể tạo đơn hàng. Vui lòng thử lại.';
+      setSubmitError(errMsg);
     } finally {
       setIsSubmitting(false);
     }
@@ -113,8 +166,76 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
       {/* Modal Card */}
       <div className="relative bg-white rounded-2xl shadow-2xl max-w-xl w-full p-6 sm:p-8 overflow-hidden z-10 animate-fadeIn">
-        {/* Success View */}
-        {createdOrder ? (
+        {/* View 1: Not Authenticated View */}
+        {!isAuthenticated || !user ? (
+          <div className="text-center py-4 space-y-4 animate-fadeIn">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="text-left">
+                <h2 className="text-lg font-bold text-slate-900">Yêu cầu đăng nhập</h2>
+                <p className="text-xs text-slate-500">Đăng nhập tài khoản khách hàng để tiến hành thanh toán</p>
+              </div>
+              <button
+                onClick={onClose}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="w-16 h-16 rounded-2xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center mx-auto shadow-xs mt-2">
+              <LogIn className="w-8 h-8 ml-0.5" />
+            </div>
+
+            <div className="space-y-1.5">
+              <h3 className="text-base font-bold text-slate-900">Vui lòng đăng nhập để đặt hàng</h3>
+              <p className="text-xs text-slate-600 max-w-md mx-auto leading-relaxed">
+                Để bảo vệ quyền lợi mua sắm, tích lũy điểm và theo dõi trạng thái vận chuyển qua <strong>Tủ đồ & Đơn mua</strong>, quý khách vui lòng đăng nhập tài khoản Khách hàng.
+              </p>
+            </div>
+
+            {/* Selected items summary */}
+            <div className="bg-slate-50 rounded-xl p-3.5 border border-slate-200 text-xs text-slate-700 text-left space-y-2 max-w-md mx-auto">
+              <div className="flex items-center justify-between text-slate-600">
+                <span>Số lượng món thanh toán:</span>
+                <span className="font-bold text-slate-800">{activeItems.length} món</span>
+              </div>
+              <div className="flex items-center justify-between pt-1.5 border-t border-slate-200">
+                <span className="font-semibold text-slate-700">Tạm tính thanh toán:</span>
+                <span className="font-bold text-indigo-600 text-sm">{total.toLocaleString('vi-VN')} ₫</span>
+              </div>
+            </div>
+
+            <div className="pt-2 flex flex-col sm:flex-row gap-3 justify-center max-w-md mx-auto">
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  navigate('/login');
+                }}
+                className="w-full sm:flex-1 py-3 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-md transition flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <LogIn className="w-4 h-4" />
+                <span>Đăng nhập ngay</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  navigate('/register');
+                }}
+                className="w-full sm:flex-1 py-3 px-4 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs rounded-xl border border-slate-200 transition flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <UserPlus className="w-4 h-4" />
+                <span>Đăng ký tài khoản</span>
+              </button>
+            </div>
+
+            <p className="text-[11px] text-slate-400">
+              * Giỏ hàng của bạn sẽ được giữ nguyên an toàn sau khi bạn đăng nhập.
+            </p>
+          </div>
+        ) : createdOrder ? (
+          /* View 2: Success View */
           <div className="text-center py-6 space-y-4">
             <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto ${
               createdOrder.isPaid ? 'bg-emerald-100 text-emerald-600' : 'bg-indigo-100 text-indigo-600'
@@ -210,7 +331,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             </div>
           </div>
         ) : (
-          /* Form View */
+          /* View 3: Form View */
           <div>
             <div className="flex items-center justify-between pb-4 border-b border-slate-100">
               <div>
@@ -219,13 +340,44 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               </div>
               <button
                 onClick={onClose}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100"
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 cursor-pointer transition"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             <form onSubmit={handleConfirmOrder} className="space-y-4 pt-4">
+              {/* Role Notice Banner for Admin / Staff */}
+              {(isAdmin || isStaff) && (
+                <div className="p-3 bg-amber-50/90 border border-amber-200 rounded-xl text-xs text-amber-900 flex items-start gap-2.5 animate-fadeIn">
+                  <ShieldAlert className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1 space-y-1">
+                    <div className="font-bold flex items-center justify-between">
+                      <span>Tài khoản {isAdmin ? 'Quản trị viên (Admin)' : 'Nhân viên (Staff)'}</span>
+                      <span className="text-[10px] bg-amber-200 text-amber-900 px-1.5 py-0.5 rounded font-mono font-semibold">
+                        {user?.email}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-amber-800 leading-relaxed">
+                      Bạn đang đặt hàng với tài khoản nội bộ <strong>{user?.fullName}</strong>. Đơn hàng sẽ mang tên Quản trị viên trong hệ thống.
+                    </p>
+                    <div className="pt-0.5 flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          onClose();
+                          await logout();
+                          navigate('/login');
+                        }}
+                        className="text-[11px] text-indigo-700 underline font-semibold hover:text-indigo-900 cursor-pointer"
+                      >
+                        Đăng xuất để đăng nhập tài khoản Khách hàng →
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Selective Checkout Banner if purchasing partial items */}
               {activeItems.length < cart.length && (
                 <div className="p-3 bg-indigo-50/80 border border-indigo-200 rounded-xl text-xs text-indigo-900 flex items-center justify-between animate-fadeIn">
@@ -275,6 +427,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   <input
                     type="text"
                     required
+                    placeholder="Ví dụ: Nguyễn Văn A"
                     value={customerName}
                     onChange={(e) => setCustomerName(e.target.value)}
                     className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:ring-1 focus:ring-indigo-500 focus:outline-none"
@@ -285,6 +438,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   <input
                     type="tel"
                     required
+                    placeholder="Ví dụ: 0912 345 678"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:ring-1 focus:ring-indigo-500 focus:outline-none"
@@ -297,6 +451,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 <input
                   type="text"
                   required
+                  placeholder="Số nhà, tên đường, Phường/Xã, Quận/Huyện, Tỉnh/Thành phố"
                   value={address}
                   onChange={(e) => setAddress(e.target.value)}
                   className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:ring-1 focus:ring-indigo-500 focus:outline-none"

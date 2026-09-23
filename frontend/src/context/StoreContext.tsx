@@ -62,6 +62,9 @@ export interface Order {
   note?: string;
   transactionCode?: string;
   paidAt?: string;
+  processedBy?: string;
+  processedByEmail?: string;
+  processedAt?: string;
 }
 
 export interface UserAccount {
@@ -109,6 +112,10 @@ interface StoreContextType {
   restockProduct: (productId: number, addedQty: number) => Promise<void>;
   addProduct: (productData: Omit<Product, 'id' | 'rating' | 'reviewsCount' | 'isActive'>) => Promise<void>;
   toggleProductStatus: (productId: number) => Promise<void>;
+  // Category operations
+  createCategory: (catData: { name: string; slug?: string; description?: string; imageUrl?: string }) => Promise<void>;
+  updateCategory: (id: number, catData: { name: string; slug?: string; description?: string; imageUrl?: string }) => Promise<void>;
+  deleteCategory: (id: number) => Promise<void>;
   // User operations
   toggleUserActive: (userId: number) => Promise<void>;
   changeUserRole: (userId: number, newRole: UserAccount['role']) => Promise<void>;
@@ -421,6 +428,36 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
+  const createCategory = async (catData: { name: string; slug?: string; description?: string; imageUrl?: string }) => {
+    try {
+      await productService.createCategory(catData);
+      await fetchProducts();
+    } catch (err) {
+      console.error('Failed to create category on backend:', err);
+      throw err;
+    }
+  };
+
+  const updateCategory = async (id: number, catData: { name: string; slug?: string; description?: string; imageUrl?: string }) => {
+    try {
+      await productService.updateCategory(id, catData);
+      await fetchProducts();
+    } catch (err) {
+      console.error('Failed to update category on backend:', err);
+      throw err;
+    }
+  };
+
+  const deleteCategory = async (id: number) => {
+    try {
+      await productService.deleteCategory(id);
+      await fetchProducts();
+    } catch (err) {
+      console.error('Failed to delete category on backend:', err);
+      throw err;
+    }
+  };
+
   return (
     <StoreContext.Provider
       value={{
@@ -448,6 +485,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         restockProduct,
         addProduct,
         toggleProductStatus,
+        createCategory,
+        updateCategory,
+        deleteCategory,
         toggleUserActive,
         changeUserRole,
         refreshData,

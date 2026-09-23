@@ -1,6 +1,7 @@
 package com.fashionstore.backend.modules.product.service;
 
 import com.fashionstore.backend.modules.product.dto.CategoryDto;
+import com.fashionstore.backend.modules.product.dto.CreateCategoryRequest;
 import com.fashionstore.backend.modules.product.dto.CreateProductRequest;
 import com.fashionstore.backend.modules.product.dto.ProductDto;
 
@@ -13,4 +14,7 @@ public interface ProductService {
     ProductDto restockProduct(Long id, int addedQuantity);
     ProductDto toggleProductStatus(Long id);
     List<CategoryDto> getAllCategories();
+    CategoryDto createCategory(CreateCategoryRequest request);
+    CategoryDto updateCategory(Long id, CreateCategoryRequest request);
+    void deleteCategory(Long id);
 }

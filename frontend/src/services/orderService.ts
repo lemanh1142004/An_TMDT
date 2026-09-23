@@ -103,5 +103,8 @@ function mapBackendOrder(data: any): Order {
     note: data.note,
     transactionCode: data.transactionCode,
     paidAt: data.paidAt ? new Date(data.paidAt).toLocaleString('vi-VN') : undefined,
+    processedBy: data.processedBy,
+    processedByEmail: data.processedByEmail,
+    processedAt: data.processedAt ? new Date(data.processedAt).toLocaleString('vi-VN') : undefined,
   };
 }
