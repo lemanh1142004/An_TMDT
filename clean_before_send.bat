@@ -1,28 +1,26 @@
 @echo off
-chcp 65001 > nul
-title Fashion Store - Dọn Dẹp File Rác Trước Khi Gửi
+title Fashion Store - Don Dep File Rac Truoc Khi Gui
 echo ========================================================
-echo   DỌN DẸP CÁC FILE RÁC / BUILD TẠM THỜI (TIẾT KIỆM ~300MB)
+echo   DON DEP CAC FILE RAC VA BUILD TAM THOI
 echo ========================================================
 echo.
-echo Bạn có chắc chắn muốn xóa node_modules, target, dist để nén gửi dự án không?
-echo (Đừng lo: Khi chạy lại, hệ thống sẽ tự động cài lại các thư mục này!)
+echo Ban co chac chan muon xoa node_modules va target khong?
 echo.
 pause
 
 echo.
-echo [*] Đang xóa thư mục node_modules...
+echo [*] Dang xoa thu muc node_modules...
 if exist node_modules rmdir /s /q node_modules
 if exist frontend\node_modules rmdir /s /q frontend\node_modules
 
-echo [*] Đang xóa thư mục build dist...
+echo [*] Dang xoa thu muc build dist...
 if exist frontend\dist rmdir /s /q frontend\dist
 
-echo [*] Đang xóa thư mục target của backend & gateway...
+echo [*] Dang xoa thu muc target...
 if exist backend\target rmdir /s /q backend\target
 if exist gateway\target rmdir /s /q gateway\target
 
-echo [*] Đang xóa các script kiểm thử tạm thời (.cjs)...
+echo [*] Dang xoa cac file script test tam thoi...
 if exist test_features.cjs del /f /q test_features.cjs
 if exist take_screenshots.cjs del /f /q take_screenshots.cjs
 if exist test_upload_and_pagination.cjs del /f /q test_upload_and_pagination.cjs
@@ -30,8 +28,7 @@ if exist verify_new_features.cjs del /f /q verify_new_features.cjs
 
 echo.
 echo ========================================================
-echo [HOÀN TẤT] Dự án đã được dọn sạch sẽ (~10MB)!
-echo Bạn có thể nén toàn bộ thư mục này thành file .zip để gửi ngay.
+echo [HOAN TAT] Du an da duoc don sach se!
 echo ========================================================
 echo.
 pause
