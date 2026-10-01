@@ -1,40 +1,57 @@
 @echo off
 chcp 65001 > nul
-title Fashion Store - Khởi Chạy Hệ Thống Tự Động
+title Fashion Store - Khởi Chạy Toàn Diện Bằng Docker
 echo ========================================================
 echo        HỆ THỐNG THƯƠNG MẠI ĐIỆN TỬ FASHION STORE
+echo        (Khởi chạy toàn bộ hệ thống bằng Docker Compose)
 echo ========================================================
 echo.
 
-echo [1/3] Đang khởi động Cơ sở dữ liệu PostgreSQL & Redis qua Docker...
-docker compose up -d
+echo [*] Đang kiểm tra kết nối Docker...
+docker info > nul 2>&1
 if %ERRORLEVEL% NEQ 0 (
-    echo [CẢNH BÁO] Không thể khởi động Docker. Vui lòng đảm bảo Docker Desktop đang mở!
-    echo Nếu máy bạn đã cài PostgreSQL và Redis thủ công, hãy bỏ qua bước này.
+    echo.
+    echo [LỖI] Docker chưa được khởi động!
+    echo Vui lòng mở ứng dụng "Docker Desktop" trên máy tính của bạn,
+    echo đợi Docker khởi động xong (biểu tượng cá voi màu xanh lá) rồi chạy lại file này.
+    echo.
     pause
+    exit /b 1
 )
+
+echo [*] Docker đã sẵn sàng! Đang tiến hành build và khởi chạy tất cả dịch vụ...
+echo     - PostgreSQL 16 (Port 5432)
+echo     - Redis 7 (Port 6379)
+echo     - Spring Boot Backend (Port 8080)
+echo     - React Frontend + Nginx (Port 5173)
 echo.
 
-echo [2/3] Đang khởi chạy Backend Spring Boot (Port 8080)...
-start "Fashion Store - Backend" cmd /k "cd /d %~dp0backend && mvnw.cmd spring-boot:run"
-echo.
+docker compose up -d --build
 
-echo [3/3] Đang cài đặt thư viện và khởi chạy Frontend React (Port 5173)...
-start "Fashion Store - Frontend" cmd /k "cd /d %~dp0frontend && (if not exist node_modules (echo Dang cai dat thu vien npm... && npm install) else (echo Thu vien da co san.)) && npm run dev"
-echo.
+if %ERRORLEVEL% NEQ 0 (
+    echo.
+    echo [LỖI] Khởi chạy thất bại. Vui lòng kiểm tra lại log bên trên.
+    pause
+    exit /b 1
+)
 
+echo.
 echo ========================================================
-echo [HOÀN TẤT] Hệ thống đang được khởi chạy!
+echo [HOÀN TẤT] Tất cả dịch vụ đã khởi chạy thành công!
 echo.
-echo - Frontend:  http://localhost:5173
-echo - Backend:   http://localhost:8080
+echo 👉 Website Cửa hàng: http://localhost:5173
+echo 👉 Backend API:      http://localhost:8080
 echo.
-echo Tài khoản đăng nhập sẵn có trong hệ thống:
+echo 👤 Tài khoản mẫu có sẵn trong hệ thống:
 echo  1. Quản trị viên (Admin): admin@fashionstore.com / AdminPassword123!
 echo  2. Nhân viên (Staff):    staff@fashionstore.com / StaffPassword123!
 echo  3. Khách hàng (Customer): customer@fashionstore.com / CustomerPassword123!
 echo ========================================================
 echo.
-timeout /t 5 > nul
+echo Đang mở trình duyệt trong 3 giây...
+timeout /t 3 > nul
 start http://localhost:5173
-exit
+echo.
+echo (Nhấn phím bất kỳ để xem nhật ký log thời gian thực của hệ thống, hoặc đóng cửa sổ này)
+pause > nul
+docker compose logs -f
