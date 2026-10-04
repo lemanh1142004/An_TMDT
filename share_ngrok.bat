@@ -1,11 +1,11 @@
 @echo off
 title Fashion Store - Chia Se Link Qua Ngrok
 echo ========================================================
-echo        CHIA SẺ DỰ ÁN RA INTERNET BẰNG NGROK
+echo        CHIA SE DU AN RA INTERNET BANG NGROK
 echo ========================================================
 echo.
-echo [*] Đang mở đường hầm kết nối cổng 5173 ra Internet...
-echo (Vui lòng đảm bảo Frontend của bạn đang chạy ở cổng 5173)
+echo [*] Dang mo duong ham ket noi cong 5173 ra Internet...
+echo Chu y: Vui long dam bao he thong dang chay truoc khi mo ngrok.
 echo.
 ngrok http 5173
 pause

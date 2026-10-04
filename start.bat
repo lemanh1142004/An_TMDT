@@ -1,57 +1,58 @@
 @echo off
-chcp 65001 > nul
-title Fashion Store - Khởi Chạy Toàn Diện Bằng Docker
+title Fashion Store - Khoi Chay He Thong
 echo ========================================================
-echo        HỆ THỐNG THƯƠNG MẠI ĐIỆN TỬ FASHION STORE
-echo        (Khởi chạy toàn bộ hệ thống bằng Docker Compose)
+echo        HE THONG THUONG MAI DIEN TU FASHION STORE
 echo ========================================================
 echo.
 
-echo [*] Đang kiểm tra kết nối Docker...
+echo [*] Dang kiem tra Docker Desktop...
 docker info > nul 2>&1
-if %ERRORLEVEL% NEQ 0 (
-    echo.
-    echo [LỖI] Docker chưa được khởi động!
-    echo Vui lòng mở ứng dụng "Docker Desktop" trên máy tính của bạn,
-    echo đợi Docker khởi động xong (biểu tượng cá voi màu xanh lá) rồi chạy lại file này.
-    echo.
-    pause
-    exit /b 1
-)
+if errorlevel 1 goto DOCKER_ERROR
 
-echo [*] Docker đã sẵn sàng! Đang tiến hành build và khởi chạy tất cả dịch vụ...
-echo     - PostgreSQL 16 (Port 5432)
-echo     - Redis 7 (Port 6379)
-echo     - Spring Boot Backend (Port 8080)
-echo     - React Frontend + Nginx (Port 5173)
+echo [*] Docker da san sang! Dang tien hanh khoi chay tat ca dich vu...
+echo     - PostgreSQL 16: Port 5432
+echo     - Redis 7: Port 6379
+echo     - Spring Boot Backend: Port 8080
+echo     - React Frontend: Port 5173
 echo.
 
 docker compose up -d --build
-
-if %ERRORLEVEL% NEQ 0 (
-    echo.
-    echo [LỖI] Khởi chạy thất bại. Vui lòng kiểm tra lại log bên trên.
-    pause
-    exit /b 1
-)
+if errorlevel 1 goto BUILD_ERROR
 
 echo.
 echo ========================================================
-echo [HOÀN TẤT] Tất cả dịch vụ đã khởi chạy thành công!
+echo [HOAN TAT] Tat ca dich vu da khoi chay thanh cong!
 echo.
-echo 👉 Website Cửa hàng: http://localhost:5173
-echo 👉 Backend API:      http://localhost:8080
+echo Website Cua hang: http://localhost:5173
+echo Backend API:      http://localhost:8080
 echo.
-echo 👤 Tài khoản mẫu có sẵn trong hệ thống:
-echo  1. Quản trị viên (Admin): admin@fashionstore.com / AdminPassword123!
-echo  2. Nhân viên (Staff):    staff@fashionstore.com / StaffPassword123!
-echo  3. Khách hàng (Customer): customer@fashionstore.com / CustomerPassword123!
+echo Tai khoan mau co san:
+echo  1. Admin:    admin@fashionstore.com / AdminPassword123!
+echo  2. Staff:    staff@fashionstore.com / StaffPassword123!
+echo  3. Customer: customer@fashionstore.com / CustomerPassword123!
 echo ========================================================
 echo.
-echo Đang mở trình duyệt trong 3 giây...
+echo Dang mo trinh duyet...
 timeout /t 3 > nul
 start http://localhost:5173
+exit /b 0
+
+:DOCKER_ERROR
 echo.
-echo (Nhấn phím bất kỳ để xem nhật ký log thời gian thực của hệ thống, hoặc đóng cửa sổ này)
-pause > nul
-docker compose logs -f
+echo ========================================================
+echo [LOI] DOCKER CHUA DUOC BAT!
+echo ========================================================
+echo Vui long mo ung dung "Docker Desktop" tren may tinh cua ban,
+echo doi den khi bieu tuong con ca voi bao mau xanh (Engine running)
+echo roi moi nhap dup chay lai file nay!
+echo.
+pause
+exit /b 1
+
+:BUILD_ERROR
+echo.
+echo [LOI] Khong the khoi chay cac container Docker!
+echo Vui long kiem tra lai Docker Desktop tren may cua ban.
+echo.
+pause
+exit /b 1
