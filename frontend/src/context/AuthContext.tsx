@@ -6,8 +6,8 @@ interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (data: LoginPayload) => Promise<void>;
-  register: (data: RegisterPayload) => Promise<void>;
+  login: (data: LoginPayload) => Promise<User>;
+  register: (data: RegisterPayload) => Promise<User>;
   logout: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
@@ -40,25 +40,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []);
 
-  const login = async (data: LoginPayload) => {
+  const login = async (data: LoginPayload): Promise<User> => {
     setIsLoading(true);
     try {
       const response = await authService.login(data);
       localStorage.setItem('token', response.accessToken);
       localStorage.setItem('refreshToken', response.refreshToken);
       setUser(response.user);
+      return response.user;
     } finally {
       setIsLoading(false);
     }
   };
 
-  const register = async (data: RegisterPayload) => {
+  const register = async (data: RegisterPayload): Promise<User> => {
     setIsLoading(true);
     try {
       const response = await authService.register(data);
       localStorage.setItem('token', response.accessToken);
       localStorage.setItem('refreshToken', response.refreshToken);
       setUser(response.user);
+      return response.user;
     } finally {
       setIsLoading(false);
     }

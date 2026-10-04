@@ -47,6 +47,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/auth/**", "/api/health", "/actuator/**", "/error").permitAll()
                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/products/**", "/api/categories/**", "/uploads/**").permitAll()
                 .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/orders/*/pay").permitAll()
+                .requestMatchers("/api/chat/send", "/api/chat/customer").permitAll()
                 .requestMatchers("/api/upload/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_STAFF")
                 .requestMatchers("/api/admin/**").hasAuthority("ROLE_ADMIN")
                 .anyRequest().authenticated()

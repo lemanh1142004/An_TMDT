@@ -26,8 +26,30 @@ export const LoginPage: React.FC = () => {
 
     setIsSubmitting(true);
     try {
-      await login({ email, password });
-      navigate(from, { replace: true });
+      const loggedUser = await login({ email, password });
+      
+      const isAdmin = loggedUser.roles?.includes('ROLE_ADMIN');
+      const isStaff = loggedUser.roles?.includes('ROLE_STAFF');
+      const isCustomer = loggedUser.roles?.includes('ROLE_CUSTOMER');
+
+      let targetDestination = '/';
+      if (from && from !== '/profile' && from !== '/login' && from !== '/unauthorized') {
+        if (from.startsWith('/admin')) {
+          targetDestination = isAdmin ? '/admin' : isStaff ? '/staff' : '/customer';
+        } else if (from.startsWith('/staff')) {
+          targetDestination = isStaff ? '/staff' : isAdmin ? '/admin' : '/customer';
+        } else if (from.startsWith('/customer')) {
+          targetDestination = isCustomer ? '/customer' : isAdmin ? '/admin' : '/staff';
+        } else {
+          targetDestination = from;
+        }
+      } else {
+        if (isAdmin) targetDestination = '/admin';
+        else if (isStaff) targetDestination = '/staff';
+        else targetDestination = '/customer';
+      }
+
+      navigate(targetDestination, { replace: true });
     } catch (err: any) {
       if (err.response?.data?.message) {
         setError(err.response.data.message);

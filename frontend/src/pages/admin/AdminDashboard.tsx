@@ -31,7 +31,8 @@ import {
   Upload,
   ImageIcon,
   FileUp,
-  Loader2
+  Loader2,
+  MessageSquare
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useStore } from '../../context/StoreContext';
@@ -41,6 +42,7 @@ import { uploadService } from '../../services/uploadService';
 import { productService } from '../../services/productService';
 import { orderService } from '../../services/orderService';
 import { PaginationControl } from '../../components/PaginationControl';
+import { AdminStaffChatPanel } from '../../components/AdminStaffChatPanel';
 
 export const AdminDashboard: React.FC = () => {
   const { user } = useAuth();
@@ -59,7 +61,7 @@ export const AdminDashboard: React.FC = () => {
     changeUserRole 
   } = useStore();
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'products' | 'categories' | 'users' | 'system'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'products' | 'categories' | 'messages' | 'users' | 'system'>('overview');
   const [searchTerm, setSearchTerm] = useState('');
   const [userSearchTerm, setUserSearchTerm] = useState('');
   const [isSyncing, setIsSyncing] = useState(false);
@@ -491,6 +493,13 @@ export const AdminDashboard: React.FC = () => {
           className={`pb-3 relative transition whitespace-nowrap ${activeTab === 'users' ? 'text-indigo-600 font-semibold border-b-2 border-indigo-600' : 'hover:text-slate-900'}`}
         >
           Quản lý Người dùng & Nhân viên ({users.length})
+        </button>
+        <button
+          onClick={() => setActiveTab('messages')}
+          className={`pb-3 relative transition whitespace-nowrap flex items-center gap-1.5 ${activeTab === 'messages' ? 'text-indigo-600 font-semibold border-b-2 border-indigo-600' : 'hover:text-slate-900'}`}
+        >
+          <MessageSquare className="w-4 h-4" />
+          <span>Tin nhắn & Hỗ trợ</span>
         </button>
         <button
           onClick={() => setActiveTab('system')}
@@ -987,6 +996,11 @@ export const AdminDashboard: React.FC = () => {
             </table>
           </div>
         </div>
+      )}
+
+      {/* Tab: Messages & Support */}
+      {activeTab === 'messages' && (
+        <AdminStaffChatPanel userRole="ROLE_ADMIN" />
       )}
 
       {/* Tab 4: Technical & Microservices */}

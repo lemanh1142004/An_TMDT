@@ -21,9 +21,12 @@ import { useStore } from '../../context/StoreContext';
 import type { Order, Product } from '../../context/StoreContext';
 import { getProductImage, handleImageError } from '../../utils/imageUtils';
 
+import { AdminStaffChatPanel } from '../../components/AdminStaffChatPanel';
+
 export const StaffDashboard: React.FC = () => {
   const { user } = useAuth();
   const { orders, products, updateOrderStatus, restockProduct, confirmPayment } = useStore();
+  const [mainTab, setMainTab] = useState<'orders' | 'messages'>('orders');
   const [activeTab, setActiveTab] = useState<'ALL' | 'PENDING' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED'>('PENDING');
   const [searchQuery, setSearchQuery] = useState('');
   const [notification, setNotification] = useState<string | null>(null);
@@ -165,8 +168,39 @@ export const StaffDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* Low Stock Alerts & Restock Section */}
-      <div className="bg-amber-50 border border-amber-200 rounded-xl p-5 space-y-3">
+      {/* Main Staff View Switcher */}
+      <div className="flex border-b border-slate-200 gap-6">
+        <button
+          onClick={() => setMainTab('orders')}
+          className={`pb-3 text-sm font-bold flex items-center gap-2 border-b-2 transition cursor-pointer ${
+            mainTab === 'orders'
+              ? 'border-teal-600 text-teal-700'
+              : 'border-transparent text-slate-500 hover:text-slate-700'
+          }`}
+        >
+          <Package className="w-4 h-4" />
+          <span>Quản lý Đơn hàng & Kho vận</span>
+        </button>
+
+        <button
+          onClick={() => setMainTab('messages')}
+          className={`pb-3 text-sm font-bold flex items-center gap-2 border-b-2 transition cursor-pointer ${
+            mainTab === 'messages'
+              ? 'border-indigo-600 text-indigo-700'
+              : 'border-transparent text-slate-500 hover:text-slate-700'
+          }`}
+        >
+          <MessageSquare className="w-4 h-4" />
+          <span>Tin nhắn & Hỗ trợ (Khách hàng & Admin)</span>
+        </button>
+      </div>
+
+      {mainTab === 'messages' ? (
+        <AdminStaffChatPanel userRole="ROLE_STAFF" />
+      ) : (
+        <>
+          {/* Low Stock Alerts & Restock Section */}
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-5 space-y-3">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div className="flex items-center gap-2.5">
             <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0" />
@@ -478,6 +512,8 @@ export const StaffDashboard: React.FC = () => {
           )}
         </div>
       </div>
+      </>
+      )}
 
       {/* Restock Modal */}
       {restockingProduct && (

@@ -15,6 +15,7 @@ import { useAuth } from '../context/AuthContext';
 import { useStore } from '../context/StoreContext';
 import { CartDrawer } from '../components/CartDrawer';
 import { CheckoutModal } from '../components/CheckoutModal';
+import { ChatBubble } from '../components/ChatBubble';
 
 export const RootLayout: React.FC = () => {
   const { user, isAuthenticated, logout } = useAuth();
@@ -33,7 +34,7 @@ export const RootLayout: React.FC = () => {
 
   const handleLogout = async () => {
     await logout();
-    navigate('/login');
+    navigate('/login', { replace: true, state: null });
   };
 
   // Active status detection
@@ -416,6 +417,11 @@ export const RootLayout: React.FC = () => {
           </div>
         </div>
       </footer>
+
+      {/* Floating Chat Bubble for Customers & Visitors */}
+      {!location.pathname.startsWith('/admin') && !location.pathname.startsWith('/staff') && (
+        <ChatBubble />
+      )}
     </div>
   );
 };

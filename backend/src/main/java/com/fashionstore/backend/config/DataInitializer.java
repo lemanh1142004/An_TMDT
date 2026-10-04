@@ -1,5 +1,8 @@
 package com.fashionstore.backend.config;
 
+import com.fashionstore.backend.modules.chat.entity.ChatChannelType;
+import com.fashionstore.backend.modules.chat.entity.ChatMessage;
+import com.fashionstore.backend.modules.chat.repository.ChatMessageRepository;
 import com.fashionstore.backend.modules.order.entity.Order;
 import com.fashionstore.backend.modules.order.entity.OrderItem;
 import com.fashionstore.backend.modules.order.entity.OrderStatus;
@@ -22,6 +25,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -38,6 +42,7 @@ public class DataInitializer implements CommandLineRunner {
     private final CategoryRepository categoryRepository;
     private final ProductRepository productRepository;
     private final OrderRepository orderRepository;
+    private final ChatMessageRepository chatMessageRepository;
 
     @Override
     public void run(String... args) {
@@ -96,8 +101,14 @@ public class DataInitializer implements CommandLineRunner {
         // 6. Seed Categories & Products if empty
         seedCatalogIfEmpty();
 
-        // 7. Seed Orders if empty
+        // 7. Seed More Products to reach 32 items
+        seedMoreProductsIfCatalogSmall();
+
+        // 8. Seed Orders if empty
         seedOrdersIfEmpty(customerUser);
+
+        // 9. Seed Chat Messages if empty
+        seedChatMessagesIfEmpty(customerUser);
     }
 
     private void seedCatalogIfEmpty() {
@@ -400,6 +411,244 @@ public class DataInitializer implements CommandLineRunner {
                 log.info("Repaired missing image for product ID: {}", p.getId());
             }
         });
+    }
+
+    private void seedMoreProductsIfCatalogSmall() {
+        if (productRepository.count() < 30) {
+            log.info("Expanding fashion catalog to 32+ products in PostgreSQL...");
+            Category women = categoryRepository.findBySlug("thoi-trang-nu").orElse(null);
+            Category men = categoryRepository.findBySlug("thoi-trang-nam").orElse(null);
+            Category accessories = categoryRepository.findBySlug("phu-kien").orElse(null);
+            Category unisex = categoryRepository.findBySlug("unisex").orElse(null);
+
+            if (women != null && men != null && accessories != null && unisex != null) {
+                productRepository.saveAll(List.of(
+                        Product.builder()
+                                .name("Áo Khoác Măng Tô Dạ Dáng Dài Hàn Quốc")
+                                .category(women)
+                                .price(BigDecimal.valueOf(1850000))
+                                .originalPrice(BigDecimal.valueOf(2350000))
+                                .stock(14)
+                                .image("https://images.unsplash.com/photo-1544441893-675973e31985?w=600&auto=format&fit=crop&q=80")
+                                .tag("Cao cấp")
+                                .rating(5.0)
+                                .reviewsCount(68)
+                                .description("Áo khoác dạ dáng dài phom kén phong cách Seoul, giữ ấm tối ưu và cực kỳ tôn dáng.")
+                                .active(true)
+                                .build(),
+                        Product.builder()
+                                .name("Đầm Lụa Hai Dây Cut-Out Quyến Rũ")
+                                .category(women)
+                                .price(BigDecimal.valueOf(890000))
+                                .originalPrice(BigDecimal.valueOf(1150000))
+                                .stock(18)
+                                .image("https://images.unsplash.com/photo-1595777457583-95e059d581b8?w=600&auto=format&fit=crop&q=80")
+                                .tag("Hot")
+                                .rating(4.9)
+                                .reviewsCount(54)
+                                .description("Chất lụa ngọc trai bóng nhẹ, thiết kế xẻ tà quyến rũ cho các buổi dạ tiệc sang trọng.")
+                                .active(true)
+                                .build(),
+                        Product.builder()
+                                .name("Chân Váy Chữ A Kẻ Caro Vintage")
+                                .category(women)
+                                .price(BigDecimal.valueOf(420000))
+                                .originalPrice(BigDecimal.valueOf(550000))
+                                .stock(25)
+                                .image("https://images.unsplash.com/photo-1577900232427-18219b9166a0?w=600&auto=format&fit=crop&q=80")
+                                .tag("New")
+                                .rating(4.8)
+                                .reviewsCount(36)
+                                .description("Họa tiết kẻ sọc thanh lịch phong cách học đường cổ điển, dễ phối cùng áo len hoặc sơ mi.")
+                                .active(true)
+                                .build(),
+                        Product.builder()
+                                .name("Áo Sơ Mi Lụa Cát Phom Rộng Tiểu Thư")
+                                .category(women)
+                                .price(BigDecimal.valueOf(580000))
+                                .originalPrice(BigDecimal.valueOf(720000))
+                                .stock(20)
+                                .image("https://images.unsplash.com/photo-1564257631407-4deb1f99d992?w=600&auto=format&fit=crop&q=80")
+                                .tag("Bán chạy")
+                                .rating(4.9)
+                                .reviewsCount(82)
+                                .description("Vải lụa cát mềm rũ mát lạnh, cổ đức cách điệu tay phồng nhẹ nhàng thanh lịch.")
+                                .active(true)
+                                .build(),
+                        Product.builder()
+                                .name("Áo Khoác Da Biker Jacket Nam Phong Cách")
+                                .category(men)
+                                .price(BigDecimal.valueOf(1650000))
+                                .originalPrice(BigDecimal.valueOf(2100000))
+                                .stock(9)
+                                .image("https://images.unsplash.com/photo-1521223890158-f9f7c3d5d504?w=600&auto=format&fit=crop&q=80")
+                                .tag("Best Choice")
+                                .rating(5.0)
+                                .reviewsCount(91)
+                                .description("Da PU nhập khẩu chống bong tróc, khóa kéo kim loại mạ bạc góc cạnh mạnh mẽ cá tính.")
+                                .active(true)
+                                .build(),
+                        Product.builder()
+                                .name("Quần Jean Slim-fit Co Giãn Cao Cấp")
+                                .category(men)
+                                .price(BigDecimal.valueOf(620000))
+                                .originalPrice(BigDecimal.valueOf(780000))
+                                .stock(32)
+                                .image("https://images.unsplash.com/photo-1542272604-780c96856592?w=600&auto=format&fit=crop&q=80")
+                                .tag("Hot")
+                                .rating(4.8)
+                                .reviewsCount(114)
+                                .description("Chất jean denim 12oz co giãn 4 chiều vận động thoải mái, không xù lông phai màu.")
+                                .active(true)
+                                .build(),
+                        Product.builder()
+                                .name("Áo Len Cardigan Dệt Kim Vintage Men")
+                                .category(men)
+                                .price(BigDecimal.valueOf(750000))
+                                .originalPrice(BigDecimal.valueOf(950000))
+                                .stock(16)
+                                .image("https://images.unsplash.com/photo-1620799140408-edc6dcb6d633?w=600&auto=format&fit=crop&q=80")
+                                .tag("Thu Đông")
+                                .rating(4.9)
+                                .reviewsCount(47)
+                                .description("Dệt thoi hoa văn vặn thừng dày dặn ấm áp, cúc gỗ tự nhiên phong cách hoài cổ ấm áp.")
+                                .active(true)
+                                .build(),
+                        Product.builder()
+                                .name("Giày Sneaker Da Trắng Cổ Điển")
+                                .category(men)
+                                .price(BigDecimal.valueOf(890000))
+                                .originalPrice(BigDecimal.valueOf(1190000))
+                                .stock(22)
+                                .image("https://images.unsplash.com/photo-1525966222134-fcfa99b8ae77?w=600&auto=format&fit=crop&q=80")
+                                .tag("Giảm 25%")
+                                .rating(4.9)
+                                .reviewsCount(138)
+                                .description("Đế cao su đúc nguyên khối êm ái chống trơn trượt, da microfiber dễ dàng lau sạch.")
+                                .active(true)
+                                .build(),
+                        Product.builder()
+                                .name("Ví Da Cầm Tay Mini Dập Vân Cá Sấu")
+                                .category(accessories)
+                                .price(BigDecimal.valueOf(390000))
+                                .originalPrice(BigDecimal.valueOf(500000))
+                                .stock(40)
+                                .image("https://images.unsplash.com/photo-1627123424574-724758594e93?w=600&auto=format&fit=crop&q=80")
+                                .tag("Phụ kiện")
+                                .rating(4.7)
+                                .reviewsCount(29)
+                                .description("Ví da cao cấp nhiều ngăn tiện dụng để thẻ và tiền mặt, khóa kim loại sang trọng.")
+                                .active(true)
+                                .build(),
+                        Product.builder()
+                                .name("Kính Râm Aviator Gọng Kim Loại Mạ Vàng")
+                                .category(accessories)
+                                .price(BigDecimal.valueOf(450000))
+                                .originalPrice(BigDecimal.valueOf(600000))
+                                .stock(35)
+                                .image("https://images.unsplash.com/photo-1511499767150-a48a237f0083?w=600&auto=format&fit=crop&q=80")
+                                .tag("Chống UV")
+                                .rating(4.9)
+                                .reviewsCount(73)
+                                .description("Tròng kính phân cực Polarized chống lóa UV400 bảo vệ mắt tuyệt đối dưới ánh nắng.")
+                                .active(true)
+                                .build(),
+                        Product.builder()
+                                .name("Mũ Lưỡi Trai Thêu Chữ Minimalist")
+                                .category(unisex)
+                                .price(BigDecimal.valueOf(220000))
+                                .originalPrice(BigDecimal.valueOf(290000))
+                                .stock(50)
+                                .image("https://images.unsplash.com/photo-1588850561407-ed78c282e89b?w=600&auto=format&fit=crop&q=80")
+                                .tag("Streetwear")
+                                .rating(4.8)
+                                .reviewsCount(88)
+                                .description("Vải kaki cotton thoáng khí thấm hút mồ hôi, khóa kim loại điều chỉnh độ rộng linh hoạt.")
+                                .active(true)
+                                .build(),
+                        Product.builder()
+                                .name("Áo Thun Unisex Graphic Art Form Rộng")
+                                .category(unisex)
+                                .price(BigDecimal.valueOf(320000))
+                                .originalPrice(BigDecimal.valueOf(420000))
+                                .stock(60)
+                                .image("https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?w=600&auto=format&fit=crop&q=80")
+                                .tag("Trending")
+                                .rating(4.9)
+                                .reviewsCount(142)
+                                .description("Cotton 2 chiều 250gsm dày dặn đứng form, hình in kỹ thuật số sắc nét không bong tróc.")
+                                .active(true)
+                                .build()
+                ));
+                log.info("Expanded fashion catalog to 32 items in PostgreSQL successfully.");
+            }
+        }
+    }
+
+    private void seedChatMessagesIfEmpty(User customerUser) {
+        if (chatMessageRepository.count() == 0 && customerUser != null) {
+            log.info("Seeding initial chat messages (Customer Support & Internal)...");
+
+            String custConvId = "customer_" + customerUser.getId();
+
+            chatMessageRepository.save(ChatMessage.builder()
+                    .channelType(ChatChannelType.CUSTOMER_SUPPORT)
+                    .conversationId(custConvId)
+                    .senderId(customerUser.getId())
+                    .senderName(customerUser.getFullName())
+                    .senderEmail(customerUser.getEmail())
+                    .senderRole("ROLE_CUSTOMER")
+                    .content("Shop ơi cho mình hỏi đầm lụa satin maxi dạ tiệc mẫu này cao 1m62 nặng 50kg thì mặc size M hay size S vừa ạ?")
+                    .isRead(true)
+                    .createdAt(LocalDateTime.now().minusHours(3))
+                    .build());
+
+            chatMessageRepository.save(ChatMessage.builder()
+                    .channelType(ChatChannelType.CUSTOMER_SUPPORT)
+                    .conversationId(custConvId)
+                    .senderName("Nguyễn Văn Nhân Viên")
+                    .senderEmail("staff@fashionstore.com")
+                    .senderRole("ROLE_STAFF")
+                    .content("Dạ chào bạn! Với chiều cao 1m62 và cân nặng 50kg thì bạn mặc Size S sẽ vừa vặn và tôn eo đẹp nhất nhé ạ. Đầm có độ co giãn nhẹ và rủ dáng rất đẹp ạ!")
+                    .isRead(true)
+                    .createdAt(LocalDateTime.now().minusHours(2))
+                    .build());
+
+            chatMessageRepository.save(ChatMessage.builder()
+                    .channelType(ChatChannelType.CUSTOMER_SUPPORT)
+                    .conversationId(custConvId)
+                    .senderName("Fashion Store Administrator")
+                    .senderEmail("admin@fashionstore.com")
+                    .senderRole("ROLE_ADMIN")
+                    .content("Cửa hàng đang có voucher giảm 20% FASHION20 áp dụng trực tiếp khi thanh toán bạn nhé! Chúc bạn chọn được mẫu ưng ý.")
+                    .isRead(false)
+                    .createdAt(LocalDateTime.now().minusMinutes(45))
+                    .build());
+
+            chatMessageRepository.save(ChatMessage.builder()
+                    .channelType(ChatChannelType.INTERNAL)
+                    .conversationId("internal_staff_admin")
+                    .senderName("Nguyễn Văn Nhân Viên")
+                    .senderEmail("staff@fashionstore.com")
+                    .senderRole("ROLE_STAFF")
+                    .content("Chào Sếp, hôm nay kho vừa xuất 8 đơn hàng qua GHTK và Viettel Post, tồn kho Áo Blazer Minimalist còn 4 chiếc, em đề xuất nhập thêm 20 chiếc cho đợt sale cuối tuần ạ!")
+                    .isRead(true)
+                    .createdAt(LocalDateTime.now().minusHours(4))
+                    .build());
+
+            chatMessageRepository.save(ChatMessage.builder()
+                    .channelType(ChatChannelType.INTERNAL)
+                    .conversationId("internal_staff_admin")
+                    .senderName("Fashion Store Administrator")
+                    .senderEmail("admin@fashionstore.com")
+                    .senderRole("ROLE_ADMIN")
+                    .content("OK em nhé, anh đã duyệt đơn nhập kho bổ sung 30 chiếc Blazer rồi, em theo dõi đối soát và cập nhật phiếu đóng gói giúp anh nhé!")
+                    .isRead(false)
+                    .createdAt(LocalDateTime.now().minusHours(1))
+                    .build());
+
+            log.info("Seeded demo chat messages successfully.");
+        }
     }
 
     private void seedOrdersIfEmpty(User customerUser) {

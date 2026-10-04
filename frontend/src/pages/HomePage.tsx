@@ -28,6 +28,7 @@ import type { HealthCheckResponse } from '../types';
 import { useStore } from '../context/StoreContext';
 import type { Product } from '../context/StoreContext';
 import { ProductDetailModal } from '../components/ProductDetailModal';
+import { PaginationControl } from '../components/PaginationControl';
 import { getProductImage, handleImageError } from '../utils/imageUtils';
 
 // Fallback images for dynamic categories if not provided
@@ -72,6 +73,13 @@ export const HomePage: React.FC = () => {
   // Search & Sort state
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [sortBy, setSortBy] = useState<'featured' | 'price-asc' | 'price-desc' | 'rating'>('featured');
+  const [currentPage, setCurrentPage] = useState<number>(0);
+  const [pageSize, setPageSize] = useState<number>(8);
+
+  // Reset page when category, search query or sort order changes
+  useEffect(() => {
+    setCurrentPage(0);
+  }, [selectedCategory, searchQuery, sortBy]);
 
   // Sync category & section scroll from URL query params or hash
   useEffect(() => {
@@ -157,6 +165,20 @@ export const HomePage: React.FC = () => {
 
     return list;
   }, [products, selectedCategory, searchQuery, sortBy]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredProducts.length / pageSize));
+  const paginatedProducts = useMemo(() => {
+    const start = currentPage * pageSize;
+    return filteredProducts.slice(start, start + pageSize);
+  }, [filteredProducts, currentPage, pageSize]);
+
+  const handlePageChange = (newPage: number) => {
+    setCurrentPage(newPage);
+    const el = document.getElementById('featured');
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
 
   const handleTestConnection = async () => {
     setLoading(true);
@@ -436,112 +458,130 @@ export const HomePage: React.FC = () => {
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {filteredProducts.map((p) => (
-              <div
-                key={p.id}
-                className="group bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs hover:shadow-xl transition-all duration-300 flex flex-col"
-              >
-                {/* Product Image & Quick Preview trigger */}
-                <div 
-                  className="relative aspect-[3/4] bg-slate-100 overflow-hidden cursor-pointer"
-                  onClick={() => handleOpenDetail(p)}
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {paginatedProducts.map((p) => (
+                <div
+                  key={p.id}
+                  className="group bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs hover:shadow-xl transition-all duration-300 flex flex-col"
                 >
-                  <img
-                    src={getProductImage(p.image)}
-                    alt={p.name}
-                    loading="lazy"
-                    onError={handleImageError}
-                    className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
-                  />
-                  {p.tag && (
-                    <span className="absolute top-3 left-3 px-2.5 py-1 rounded-full bg-slate-900/90 backdrop-blur text-white text-[11px] font-bold shadow-md">
-                      {p.tag}
-                    </span>
-                  )}
-                  {p.stock <= 5 && p.stock > 0 && (
-                    <span className="absolute bottom-3 left-3 px-2 py-0.5 rounded bg-amber-500/90 text-white text-[10px] font-bold backdrop-blur">
-                      Chỉ còn {p.stock} chiếc
-                    </span>
-                  )}
-                  {p.stock === 0 && (
-                    <span className="absolute bottom-3 left-3 px-2 py-0.5 rounded bg-red-600/90 text-white text-[10px] font-bold backdrop-blur">
-                      Hết hàng
-                    </span>
-                  )}
-
-                  {/* Hover Overlay with Quick View Eye Icon */}
-                  <div className="absolute inset-0 bg-slate-900/20 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
-                    <span className="px-3 py-1.5 rounded-xl bg-white/95 text-slate-900 font-bold text-xs shadow-lg flex items-center gap-1.5 transform translate-y-2 group-hover:translate-y-0 transition">
-                      <Eye className="w-3.5 h-3.5 text-indigo-600" /> Xem chi tiết
-                    </span>
-                  </div>
-
-                  <button
-                    onClick={(e) => { e.stopPropagation(); }}
-                    className="absolute top-3 right-3 p-2 rounded-full bg-white/80 hover:bg-white text-slate-700 hover:text-red-500 shadow-md backdrop-blur transition z-10"
-                    title="Thêm vào yêu thích"
+                  {/* Product Image & Quick Preview trigger */}
+                  <div 
+                    className="relative aspect-[3/4] bg-slate-100 overflow-hidden cursor-pointer"
+                    onClick={() => handleOpenDetail(p)}
                   >
-                    <Heart className="w-4 h-4" />
-                  </button>
-                </div>
-
-                {/* Product Info */}
-                <div className="p-4 flex-1 flex flex-col justify-between space-y-3">
-                  <div>
-                    <div className="flex items-center justify-between text-xs text-slate-400 mb-1">
-                      <span className="font-semibold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded text-[10px]">
-                        {p.category}
+                    <img
+                      src={getProductImage(p.image)}
+                      alt={p.name}
+                      loading="lazy"
+                      onError={handleImageError}
+                      className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
+                    />
+                    {p.tag && (
+                      <span className="absolute top-3 left-3 px-2.5 py-1 rounded-full bg-slate-900/90 backdrop-blur text-white text-[11px] font-bold shadow-md">
+                        {p.tag}
                       </span>
-                      <div className="flex items-center gap-1 text-amber-500 font-semibold text-[11px]">
-                        <Star className="w-3 h-3 fill-amber-500" />
-                        <span>{p.rating.toFixed(1)}</span>
-                        <span className="text-slate-400">({p.reviewsCount})</span>
-                      </div>
+                    )}
+                    {p.stock <= 5 && p.stock > 0 && (
+                      <span className="absolute bottom-3 left-3 px-2 py-0.5 rounded bg-amber-500/90 text-white text-[10px] font-bold backdrop-blur">
+                        Chỉ còn {p.stock} chiếc
+                      </span>
+                    )}
+                    {p.stock === 0 && (
+                      <span className="absolute bottom-3 left-3 px-2 py-0.5 rounded bg-red-600/90 text-white text-[10px] font-bold backdrop-blur">
+                        Hết hàng
+                      </span>
+                    )}
+
+                    {/* Hover Overlay with Quick View Eye Icon */}
+                    <div className="absolute inset-0 bg-slate-900/20 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
+                      <span className="px-3 py-1.5 rounded-xl bg-white/95 text-slate-900 font-bold text-xs shadow-lg flex items-center gap-1.5 transform translate-y-2 group-hover:translate-y-0 transition">
+                        <Eye className="w-3.5 h-3.5 text-indigo-600" /> Xem chi tiết
+                      </span>
                     </div>
-                    <h3 
-                      onClick={() => handleOpenDetail(p)}
-                      className="font-bold text-slate-900 text-sm group-hover:text-indigo-600 transition line-clamp-2 cursor-pointer leading-snug"
+
+                    <button
+                      onClick={(e) => { e.stopPropagation(); }}
+                      className="absolute top-3 right-3 p-2 rounded-full bg-white/80 hover:bg-white text-slate-700 hover:text-red-500 shadow-md backdrop-blur transition z-10"
+                      title="Thêm vào yêu thích"
                     >
-                      {p.name}
-                    </h3>
+                      <Heart className="w-4 h-4" />
+                    </button>
                   </div>
 
-                  <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
+                  {/* Product Info */}
+                  <div className="p-4 flex-1 flex flex-col justify-between space-y-3">
                     <div>
-                      <div className="text-base font-extrabold text-slate-900">
-                        {p.price.toLocaleString('vi-VN')} ₫
-                      </div>
-                      {p.originalPrice && (
-                        <div className="text-[11px] text-slate-400 line-through">
-                          {p.originalPrice.toLocaleString('vi-VN')} ₫
+                      <div className="flex items-center justify-between text-xs text-slate-400 mb-1">
+                        <span className="font-semibold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded text-[10px]">
+                          {p.category}
+                        </span>
+                        <div className="flex items-center gap-1 text-amber-500 font-semibold text-[11px]">
+                          <Star className="w-3 h-3 fill-amber-500" />
+                          <span>{p.rating.toFixed(1)}</span>
+                          <span className="text-slate-400">({p.reviewsCount})</span>
                         </div>
-                      )}
+                      </div>
+                      <h3 
+                        onClick={() => handleOpenDetail(p)}
+                        className="font-bold text-slate-900 text-sm group-hover:text-indigo-600 transition line-clamp-2 cursor-pointer leading-snug"
+                      >
+                        {p.name}
+                      </h3>
                     </div>
 
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        onClick={() => handleOpenDetail(p)}
-                        disabled={p.stock === 0}
-                        className="px-2.5 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold transition flex items-center gap-1"
-                        title="Chọn size & màu"
-                      >
-                        <Zap className="w-3 h-3 text-amber-500 fill-amber-500" /> Mua
-                      </button>
+                    <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
+                      <div>
+                        <div className="text-base font-extrabold text-slate-900">
+                          {p.price.toLocaleString('vi-VN')} ₫
+                        </div>
+                        {p.originalPrice && (
+                          <div className="text-[11px] text-slate-400 line-through">
+                            {p.originalPrice.toLocaleString('vi-VN')} ₫
+                          </div>
+                        )}
+                      </div>
 
-                      <button
-                        onClick={() => handleQuickAdd(p)}
-                        disabled={p.stock === 0}
-                        className="p-2 rounded-lg bg-slate-900 hover:bg-indigo-600 disabled:bg-slate-300 text-white transition shadow-xs"
-                        title="Thêm nhanh vào giỏ"
-                      >
-                        <ShoppingBag className="w-3.5 h-3.5" />
-                      </button>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={() => handleOpenDetail(p)}
+                          disabled={p.stock === 0}
+                          className="px-2.5 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold transition flex items-center gap-1"
+                          title="Chọn size & màu"
+                        >
+                          <Zap className="w-3 h-3 text-amber-500 fill-amber-500" /> Mua
+                        </button>
+
+                        <button
+                          onClick={() => handleQuickAdd(p)}
+                          disabled={p.stock === 0}
+                          className="p-2 rounded-lg bg-slate-900 hover:bg-indigo-600 disabled:bg-slate-300 text-white transition shadow-xs"
+                          title="Thêm nhanh vào giỏ"
+                        >
+                          <ShoppingBag className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
+
+            {/* Pagination Controls */}
+            <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
+              <PaginationControl
+                page={currentPage}
+                totalPages={totalPages}
+                totalElements={filteredProducts.length}
+                pageSize={pageSize}
+                onPageChange={handlePageChange}
+                onPageSizeChange={(newSize) => {
+                  setPageSize(newSize);
+                  setCurrentPage(0);
+                }}
+                pageSizeOptions={[8, 12, 16, 24]}
+              />
+            </div>
           </div>
         )}
       </section>
