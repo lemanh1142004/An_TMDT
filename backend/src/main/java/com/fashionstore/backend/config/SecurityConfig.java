@@ -44,7 +44,7 @@ public class SecurityConfig {
             .exceptionHandling(exception -> exception.authenticationEntryPoint(jwtAuthenticationEntryPoint))
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/auth/**", "/api/health", "/actuator/**", "/error").permitAll()
+                .requestMatchers("/api/auth/**", "/api/health", "/actuator/**", "/error", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/products/**", "/api/categories/**", "/uploads/**").permitAll()
                 .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/orders/*/pay").permitAll()
                 .requestMatchers("/api/chat/send", "/api/chat/customer").permitAll()

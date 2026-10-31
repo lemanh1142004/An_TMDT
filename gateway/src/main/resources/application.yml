@@ -27,7 +27,7 @@ spring:
         - id: backend-service-route
           uri: ${BACKEND_SERVICE_URL:http://localhost:8080}
           predicates:
-            - Path=/api/**
+            - Path=/api/**, /v3/api-docs/**, /swagger-ui/**, /swagger-ui.html
 
 management:
   endpoints:

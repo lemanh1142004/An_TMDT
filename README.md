@@ -40,6 +40,7 @@ Dự án website thương mại điện tử thời trang được xây dựng t
 | **Frontend** | `5173` | Giao diện React Vite (`http://localhost:5173`) |
 | **API Gateway** | `8081` | Single Entry Point định tuyến API (`http://localhost:8081`) |
 | **Backend API** | `8080` | REST API service nội bộ (`http://localhost:8080`) |
+| **Swagger UI** | `8081` / `8080` | OpenAPI 3.0 Docs (`http://localhost:8081/swagger-ui.html`) |
 | **PostgreSQL** | `5432` | Relational Database (Docker) |
 | **Redis** | `6379` | Cache & Session store (Docker) |
 
