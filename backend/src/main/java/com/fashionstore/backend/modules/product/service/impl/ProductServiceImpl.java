@@ -13,6 +13,9 @@ import com.fashionstore.backend.modules.product.repository.ProductRepository;
 import com.fashionstore.backend.modules.product.service.ProductService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -33,7 +36,9 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     @Transactional(readOnly = true)
+    @Cacheable(value = "product_catalog", key = "#onlyActive")
     public List<ProductDto> getAllProducts(boolean onlyActive) {
+        log.info("Querying database for product catalog (Cache miss, onlyActive={})", onlyActive);
         List<Product> products = onlyActive
                 ? productRepository.findByActiveTrueOrderByCreatedAtDesc()
                 : productRepository.findAllByOrderByCreatedAtDesc();
@@ -67,7 +72,9 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     @Transactional(readOnly = true)
+    @Cacheable(value = "products", key = "#id")
     public ProductDto getProductById(Long id) {
+        log.info("Querying database for product ID={} (Cache miss)", id);
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new AppException("Sản phẩm không tồn tại với ID: " + id, HttpStatus.NOT_FOUND));
         return mapToDto(product);
@@ -75,6 +82,10 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "products", allEntries = true),
+            @CacheEvict(value = "product_catalog", allEntries = true)
+    })
     public ProductDto createProduct(CreateProductRequest request) {
         Category category = null;
         if (request.getCategoryId() != null) {
@@ -104,37 +115,47 @@ public class ProductServiceImpl implements ProductService {
                 .build();
 
         Product saved = productRepository.save(product);
-        log.info("Created new product: ID={}, Name={}", saved.getId(), saved.getName());
+        log.info("Created new product ID={}, Name={} (Evicted Redis caches)", saved.getId(), saved.getName());
         return mapToDto(saved);
     }
 
     @Override
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "products", key = "#id"),
+            @CacheEvict(value = "product_catalog", allEntries = true)
+    })
     public ProductDto restockProduct(Long id, int addedQuantity) {
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new AppException("Sản phẩm không tồn tại với ID: " + id, HttpStatus.NOT_FOUND));
 
         product.setStock(product.getStock() + addedQuantity);
         Product saved = productRepository.save(product);
-        log.info("Restocked product ID={}: new stock={}", id, saved.getStock());
+        log.info("Restocked product ID={}: new stock={} (Evicted Redis caches)", id, saved.getStock());
         return mapToDto(saved);
     }
 
     @Override
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "products", key = "#id"),
+            @CacheEvict(value = "product_catalog", allEntries = true)
+    })
     public ProductDto toggleProductStatus(Long id) {
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new AppException("Sản phẩm không tồn tại với ID: " + id, HttpStatus.NOT_FOUND));
 
         product.setActive(!product.getActive());
         Product saved = productRepository.save(product);
-        log.info("Toggled product ID={} status to {}", id, saved.getActive());
+        log.info("Toggled product ID={} status to {} (Evicted Redis caches)", id, saved.getActive());
         return mapToDto(saved);
     }
 
     @Override
     @Transactional(readOnly = true)
+    @Cacheable(value = "categories")
     public List<CategoryDto> getAllCategories() {
+        log.info("Querying database for categories (Cache miss)");
         return categoryRepository.findAll().stream()
                 .map(c -> CategoryDto.builder()
                         .id(c.getId())
@@ -148,6 +169,7 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     @Transactional
+    @CacheEvict(value = "categories", allEntries = true)
     public CategoryDto createCategory(CreateCategoryRequest request) {
         String slug = (request.getSlug() != null && !request.getSlug().isBlank())
                 ? request.getSlug().trim().toLowerCase()
@@ -165,12 +187,13 @@ public class ProductServiceImpl implements ProductService {
                 .build();
 
         Category saved = categoryRepository.save(category);
-        log.info("Created new category: ID={}, Name={}", saved.getId(), saved.getName());
+        log.info("Created new category ID={}, Name={} (Evicted Redis categories cache)", saved.getId(), saved.getName());
         return mapCategoryToDto(saved);
     }
 
     @Override
     @Transactional
+    @CacheEvict(value = "categories", allEntries = true)
     public CategoryDto updateCategory(Long id, CreateCategoryRequest request) {
         Category category = categoryRepository.findById(id)
                 .orElseThrow(() -> new AppException("Danh mục không tồn tại với ID: " + id, HttpStatus.NOT_FOUND));
@@ -197,18 +220,19 @@ public class ProductServiceImpl implements ProductService {
         }
 
         Category saved = categoryRepository.save(category);
-        log.info("Updated category ID={}: Name={}", saved.getId(), saved.getName());
+        log.info("Updated category ID={}: Name={} (Evicted Redis categories cache)", saved.getId(), saved.getName());
         return mapCategoryToDto(saved);
     }
 
     @Override
     @Transactional
+    @CacheEvict(value = "categories", allEntries = true)
     public void deleteCategory(Long id) {
         Category category = categoryRepository.findById(id)
                 .orElseThrow(() -> new AppException("Danh mục không tồn tại với ID: " + id, HttpStatus.NOT_FOUND));
 
         categoryRepository.delete(category);
-        log.info("Deleted category ID={}", id);
+        log.info("Deleted category ID={} (Evicted Redis categories cache)", id);
     }
 
     private CategoryDto mapCategoryToDto(Category c) {
